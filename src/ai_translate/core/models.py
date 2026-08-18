@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+
+
+class JobKind(str, Enum):
+    SELECTION = "selection"
+    OCR = "ocr"
+
+
+class JobStatus(str, Enum):
+    SUCCESS = "success"
+    PARTIAL = "partial"
+    FAILURE = "failure"
+
+
+@dataclass(frozen=True)
+class TranslationRequest:
+    text: str
+    source_lang: str
+    target_lang: str
+
+
+@dataclass(frozen=True)
+class TranslationResult:
+    status: JobStatus
+    source_text: str
+    translated_text: str | None
+    source_lang: str
+    target_lang: str
+    model: str
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class OcrResult:
+    status: JobStatus
+    text: str | None
+    model: str
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class ConfigStatus:
+    translate_ready: bool
+    translate_base_url: str
+    translate_model: str
+    translate_api_key_set: bool
+    translate_source_lang: str
+    translate_target_lang: str
+    ocr_ready: bool
+    ocr_base_url: str
+    ocr_model: str
+    ocr_api_key_set: bool
+
+
+@dataclass(frozen=True)
+class TranslateJob:
+    kind: JobKind
+    status: JobStatus
+    source_text: str | None
+    translated_text: str | None
+    ocr_text: str | None = None
+    error: str | None = None
+    translate_model: str | None = None
+    ocr_model: str | None = None
