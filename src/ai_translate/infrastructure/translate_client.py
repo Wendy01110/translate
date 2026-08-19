@@ -14,7 +14,10 @@ class HttpTranslator:
         client: httpx.Client | None = None,
     ) -> None:
         self._settings = settings
-        self._client = client or httpx.Client()
+        self._client = client or httpx.Client(
+            timeout=settings.timeout_seconds,
+            trust_env=False,
+        )
 
     def translate(self, request: TranslationRequest) -> TranslationResult:
         if not self._settings.ready:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ai_translate.core.models import (
     JobStatus,
     OcrResult,
@@ -43,14 +45,17 @@ class FakeOcrEngine:
         error: str | None = None,
         model: str = "fake-ocr",
     ) -> None:
-        self.calls: list[tuple[bytes, str]] = []
+        self.calls: list[list[tuple[bytes, str]]] = []
         self._text = text
         self._status = status
         self._error = error
         self._model = model
 
     def recognize(self, image_bytes: bytes, mime_type: str) -> OcrResult:
-        self.calls.append((image_bytes, mime_type))
+        return self.recognize_pages([(image_bytes, mime_type)])
+
+    def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
+        self.calls.append(list(pages))
         return OcrResult(
             status=self._status,
             text=self._text,

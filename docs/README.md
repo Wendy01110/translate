@@ -1,21 +1,23 @@
 # 文档入口
 
-> 更新时间：2026-08-19（Asia/Shanghai）
+> 更新时间：2026-08-20（Asia/Shanghai）
 
 本页是项目维护文档的唯一默认入口，只保留当前状态、活动任务和权威资料路由。面向使用者的最短路径见 [项目 README](../README.md)；日期化事实放在计划或日志，不在本页重复维护。
 
 ## 当前状态
 
 - 仓库已建立文档框架、Agent 规则和可安装的 Python 骨架。
-- 翻译模型与 OCR 模型通过独立环境变量配置；`ai-translate config-check` 可以回读配置就绪状态，但不调用上游。
-- 划词翻译和 OCR 翻译的用例边界已用 Fake 端口覆盖；桌面划词、截屏圈选和真实模型调用尚未实现。
-- 当前没有进行中计划，也没有开放 Issue。下一阶段实现见待进行计划。
+- 翻译与 OCR 通过独立环境变量配置；翻译可选用 Google/Bing/DeepL 内置网页源（免密钥）或官方/OpenAI 兼容源；只读一个配置文件；`config-check` 回读路径和就绪状态，但不调用上游。
+- OCR 默认先走本机 Vision，不够再用 Unlimited-OCR。CLI 支持本地图片和 macOS 圈选截屏。
+- 划词和 OCR 可通过 `listen` 热键或菜单栏 App 触发；浮窗只显示原文和译文。设置页按翻译来源只显示需要的字段；内置网页源不用密钥。
+- 输入框、历史和视频字幕尚未实施。当前没有开放 Issue。
 
 ## 当前工作
 
-当前没有进行中计划。
-
-需要选择后续工作时，从 [计划状态索引](./plan/README.md) 的待进行项读取，不要把已完成的框架搭建或历史日志当成下一步指令。
+| 工作 | 当前结论 | 入口 |
+| --- | --- | --- |
+| 划词翻译与 OCR 翻译首期实现 | 热键划词、热键 OCR、`text` CLI 和浮窗已实现；真实热键/截屏/模型验收未执行 | [计划](./plan/in-progress/2026-08-19-selection-and-ocr-implementation.md) |
+| macOS 菜单栏 App | 做成 `AI Translate.app`，让辅助功能授权对象是 App 而不是 Cursor | [计划](./plan/in-progress/2026-08-19-macos-menu-bar-app.md) |
 
 ## 按任务查找
 
@@ -25,6 +27,8 @@
 | 确认首期做什么、不做什么 | [产品范围](./design/product-scope.md) |
 | 修改分层、端口或执行链 | [架构设计](./design/architecture.md) |
 | 修改环境变量或双模型边界 | [配置设计](./design/configuration.md) |
+| 修改 macOS 热键、菜单栏或浮窗 | [桌面热键设计](./design/desktop-hotkeys.md) |
+| 修改 OCR 本机/模型分流 | [OCR 分流](./design/ocr-routing.md) |
 | 更新计划、Issue 或日志 | [文档框架](./design/documentation-framework-guide.md) |
 | 执行仓库任务 | [AGENTS.md](../AGENTS.md) |
 

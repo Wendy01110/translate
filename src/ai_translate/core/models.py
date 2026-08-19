@@ -39,11 +39,16 @@ class OcrResult:
     text: str | None
     model: str
     error: str | None = None
+    raw_text: str | None = None
+    image_mode: str | None = None
+    engine: str | None = None
+    confidence: float | None = None
 
 
 @dataclass(frozen=True)
 class ConfigStatus:
     translate_ready: bool
+    translate_provider: str
     translate_base_url: str
     translate_model: str
     translate_api_key_set: bool
@@ -53,6 +58,13 @@ class ConfigStatus:
     ocr_base_url: str
     ocr_model: str
     ocr_api_key_set: bool
+    ocr_image_mode: str
+    ocr_max_tokens: int
+    ocr_engine: str
+    ocr_vision_available: bool
+    hotkey_selection: str
+    hotkey_ocr: str
+    env_file: str = ""
 
 
 @dataclass(frozen=True)
@@ -65,3 +77,4 @@ class TranslateJob:
     error: str | None = None
     translate_model: str | None = None
     ocr_model: str | None = None
+    ocr_engine: str | None = None

@@ -12,6 +12,10 @@ dependencies = [
   "httpx",
   "pydantic",
   "pydantic-settings",
+  "pynput",
+  "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
+  "pyobjc-framework-Quartz; sys_platform == 'darwin'",
+  "pyobjc-framework-Vision; sys_platform == 'darwin'",
 ]
 
 [project.optional-dependencies]
