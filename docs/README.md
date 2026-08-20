@@ -6,24 +6,22 @@
 
 ## 当前状态
 
-- 仓库已建立文档框架、Agent 规则和可安装的 Python 骨架。
-- 翻译与 OCR 通过独立环境变量配置；翻译可选用 Google/Bing/DeepL 内置网页源（免密钥）或官方/OpenAI 兼容源；只读一个配置文件；`config-check` 回读路径和就绪状态，但不调用上游。
+- 仓库已建立文档框架、Agent 规则和可安装的 Python 骨架。使用者安装入口是 `./scripts/install.sh`，会创建 `.venv` 并安装 `~/Applications/AI Translate.app`。
+- 翻译与 OCR 通过独立环境变量配置；翻译默认 Google 内置网页源（免密钥），也可选用 Bing/DeepL 内置或官方/OpenAI 兼容源；只读一个配置文件；`config-check` 回读路径和就绪状态，但不调用上游。
 - OCR 默认先走本机 Vision，不够再用 Unlimited-OCR。CLI 支持本地图片和 macOS 圈选截屏。
-- 划词和 OCR 可通过 `listen` 热键或菜单栏 App 触发；浮窗只显示原文和译文。设置页按翻译来源只显示需要的字段；内置网页源不用密钥。
-- 输入框、历史和视频字幕尚未实施。当前没有开放 Issue。
+- 划词和 OCR 可通过 `listen` 热键或菜单栏 App 触发；菜单「输入翻译…」打开输入窗口。浮窗只显示原文和译文，点选后可用 `Command+C` 复制。设置页按翻译来源只显示需要的字段；「应用」立即生效并留在窗口，「保存」写入后关闭；内置网页源不用密钥。
+- 用户本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。历史和视频字幕尚未实施。当前没有开放 Issue。
+- 当前没有进行中计划。下一档产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的复制译文与有界历史。
 
 ## 当前工作
 
-| 工作 | 当前结论 | 入口 |
-| --- | --- | --- |
-| 划词翻译与 OCR 翻译首期实现 | 热键划词、热键 OCR、`text` CLI 和浮窗已实现；真实热键/截屏/模型验收未执行 | [计划](./plan/in-progress/2026-08-19-selection-and-ocr-implementation.md) |
-| macOS 菜单栏 App | 做成 `AI Translate.app`，让辅助功能授权对象是 App 而不是 Cursor | [计划](./plan/in-progress/2026-08-19-macos-menu-bar-app.md) |
+当前没有进行中计划。
 
 ## 按任务查找
 
 | 任务 | 入口 |
 | --- | --- |
-| 安装并检查配置 | [项目 README](../README.md) |
+| 安装并检查配置 | [项目 README](../README.md)（`./scripts/install.sh`） |
 | 确认首期做什么、不做什么 | [产品范围](./design/product-scope.md) |
 | 修改分层、端口或执行链 | [架构设计](./design/architecture.md) |
 | 修改环境变量或双模型边界 | [配置设计](./design/configuration.md) |

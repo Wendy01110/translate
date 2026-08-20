@@ -33,7 +33,7 @@
 
 翻译：
 
-- `TRANSLATE_PROVIDER`：`google_web` / `bing_web` / `deepl_web` 为免密钥网页源（Google 用 `client=gtx` 且必须带 `dt=t`；Bing 用翻译页 token 再调 `ttranslatev3`；DeepL 用 jsonrpc）；`openai`（代码默认）为 OpenAI 兼容；`deepl` / `microsoft` / `google` 为官方 API。网页源可能随时被对方限制。
+- `TRANSLATE_PROVIDER`：`google_web` / `bing_web` / `deepl_web` 为免密钥网页源（Google 用 `client=gtx` 且必须带 `dt=t`；Bing 用翻译页 token 再调 `ttranslatev3`；DeepL 用 jsonrpc）；代码默认 `google_web`。`openai` 为 OpenAI 兼容；`deepl` / `microsoft` / `google` 为官方 API。网页源可能随时被对方限制。
 - `TRANSLATE_BASE_URL`：`openai` 时为 Chat Completions 地址，通常以 `/v1` 结尾。其它来源可留空，使用官方默认地址；填写则覆盖默认。
 - `TRANSLATE_API_KEY`：当前翻译来源的密钥。
 - `TRANSLATE_MODEL`：仅 `openai` 使用的模型名。
@@ -62,7 +62,7 @@ OCR：
 
 OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `listen` 和菜单栏 App 注册，`config-check` 只回读字符串。
 
-菜单栏「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`。两侧地址和密钥必须分开填写，不得互拷。不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。保存后立即重建翻译/OCR 用例。设置页可切换翻译来源和模型；热键点一下再按下组合键录制。
+菜单栏「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`。两侧地址和密钥必须分开填写，不得互拷。不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。设置页可切换翻译来源和模型；热键点一下再按下组合键录制。
 
 ## 加载路径
 
@@ -86,7 +86,7 @@ OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `list
   -> 输出脱敏状态
 ```
 
-- 缺少 `.env` 不是错误；此时两侧均为未就绪。
+- 缺少 `.env` 不是错误。翻译默认 `google_web`，无需密钥即为就绪（就绪不表示网页接口一定能通）。OCR 在未配置模型时仍按引擎判定：`model` 需要地址和模型；`auto`/`vision` 可仅凭本机 Vision 就绪。
 - 未知环境变量忽略，不失败。
 - 超时必须是正数；非法值按 pydantic 校验失败，CLI 以非零退出。
 - `config-check` 不探测上游健康检查，也不发送 Chat Completions。

@@ -6,7 +6,7 @@
 
 - 目标：用两个可配置热键分别触发划词翻译和区域截屏 OCR 翻译，并在浮窗里展示原文与译文。
 - 目标：复用现有 `SelectionTranslateService` 与 `OcrTranslateService`，不把热键层做成第二套翻译语义。
-- 非目标：跨平台热键、划词工具栏、剪贴板监听和开机启动。这些见待进行计划。
+- 非目标：跨平台热键、划词工具栏、剪贴板监听和开机启动。这些见待进行计划。输入翻译由菜单打开，不占用第三组热键。
 - 非目标：在未按热键时读取选区、截屏或调用上游。
 
 ## 权威来源
@@ -18,7 +18,7 @@
 | 区域截屏 | `infrastructure/screenshot.py` |
 | 浮窗 | `interfaces/overlay.py` |
 | 常驻入口 | `AI Translate.app` 与 `ai-translate app`；终端调试仍可用 `ai-translate listen` |
-| 设置页 | `interfaces/settings.py`，保存走 `resolve_env_path()` 选出的那一个文件里允许的键。菜单「设置…」在跟踪结束后，用已保留的菜单控制器 `performSelector:afterDelay:` 打开窗口；不得使用 `AppHelper.callLater`，它在 `NSApp.run()` 下定时器目标会被回收，窗口不会出现。热键控件只录制，不提供文本框。 |
+| 设置页 | `interfaces/settings.py`，保存走 `resolve_env_path()` 选出的那一个文件里允许的键。「应用」写入后不关窗口，「保存」写入后关闭。菜单「设置…」在跟踪结束后，用已保留的菜单控制器 `performSelector:afterDelay:` 打开窗口；不得使用 `AppHelper.callLater`，它在 `NSApp.run()` 下定时器目标会被回收，窗口不会出现。热键控件只录制，不提供文本框。 |
 
 ## 核心约束
 
@@ -29,7 +29,7 @@
 - 模拟复制优先用 Quartz 发送 Command+C，避免再走 `osascript` / System Events 的自动化权限。不得把用户原剪贴板内容留给下游，也不得在日志中写下选区全文。
 - OCR 热键只截取用户圈选的区域，使用系统 `screencapture -i`；用户取消视为 `screenshot_cancelled`，不调用 OCR。
 - 热键处理必须串行：上一次未结束时忽略新触发，避免重复付费调用。
-- 浮窗是精简卡片：标题、原文、译文。可选中复制，不放按钮、历史或设置。原文和译文各自可滚动，窗口可拉大，不得用固定高度裁掉正文。标题可带「本机」或「模型」脚注。不展示密钥或原始图片。菜单栏 App 是 `LSUIElement`，浮窗必须 `hidesOnDeactivate=false`，否则会刚弹出就被系统藏掉。已有浮窗只更新内容，不得再次 `center()` 成新窗口。划词必须先读选区，再弹出或更新浮窗，避免模拟复制打到自己身上。
+- 浮窗是精简卡片：标题、原文、译文。可选中复制，不放按钮、历史或设置。原文和译文各自可滚动，窗口可拉大，不得用固定高度裁掉正文。标题可带「本机」或「模型」脚注。不展示密钥或原始图片。菜单栏 App 是 `LSUIElement`，浮窗必须 `hidesOnDeactivate=false`，否则会刚弹出就被系统藏掉。NSPanel 必须 `becomesKeyOnlyIfNeeded=false`，否则点选只读文本不会成为 key window，`Command+C` 进不了浮窗。应用要安装隐藏的 Edit 菜单，把 `Command+C` / `Command+A` 接到 `copy:` / `selectAll:`。未选中时 `copy:` 复制当前栏全文。已有浮窗只更新内容，不得再次 `center()` 成新窗口。划词必须先读选区，再弹出或更新浮窗，避免模拟复制打到自己身上。
 - `listen` 和菜单栏 App 只在 macOS 上运行。启动时不调用上游。
 - 菜单栏 App 必须是带 `LSUIElement` 的 `.app`，主进程是包内可执行文件，不得 `exec` 成系统 `python3`，否则辅助功能仍会记到 Python。本机只安装一份到 `~/Applications/AI Translate.app`。
 - AppKit 的 `NSObject` 子类必须使用唯一类名，并且整个进程只注册一次；不得在窗口构造时反复定义 `_Controller`，否则第二次打开设置会报 `overriding existing Objective-C class`。

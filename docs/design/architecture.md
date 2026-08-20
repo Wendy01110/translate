@@ -28,7 +28,7 @@ src/ai_translate/
 ├── core/                 # 契约、错误、端口
 ├── features/             # 划词翻译、OCR 翻译
 ├── infrastructure/       # 模型 HTTP、选区剪贴板、截屏
-└── interfaces/           # CLI、热键常驻、菜单栏、设置和浮窗
+└── interfaces/           # CLI、热键常驻、菜单栏、设置、输入窗口和浮窗
 ```
 
 ## 依赖方向
@@ -54,13 +54,13 @@ bootstrap -> features + infrastructure + interfaces + core
 
 ## 主流程与失败边界
 
-划词翻译由 `SelectionTranslateService` 编排：拒绝空文本，再调用 `Translator`。`bootstrap.translator_for` 按 `TRANSLATE_PROVIDER` 构造网页内置源或官方/兼容客户端，界面不得直接选协议。
+划词翻译由 `SelectionTranslateService` 编排：拒绝空文本，再调用 `Translator`。输入窗口走同一用例，结果留在窗口内，不改走划词浮窗。`bootstrap.translator_for` 按 `TRANSLATE_PROVIDER` 构造网页内置源或官方/兼容客户端，界面不得直接选协议。
 
 OCR 翻译由 `OcrTranslateService` 编排：先调用 `OcrEngine`，识别文本为空则失败并停止；识别成功后再调用 `Translator`。翻译失败时返回 `partial` 并保留 OCR 文本。
 
-CLI 接入 `config-check`、`text`、`ocr`、`ocr-translate`、`listen` 和 `app`。`ocr` 只走 OCR 端口；划词和 `ocr-translate` 必须走同一个翻译端口。`listen` 和菜单栏 App 把热键接到选区来源、区域截屏和浮窗，不在 interface 里直接打 HTTP。菜单栏设置页只改写允许的环境变量并重建现有用例。macOS `.app` 用嵌入式启动器加载同一套 `app:main`，不另写翻译语义。配置文件由 `resolve_env_path()` 选出一份，启动器只提供仓库路径，不把密钥或 `.env` 路径打进包内。
+CLI 接入 `config-check`、`text`、`ocr`、`ocr-translate`、`listen` 和 `app`。`ocr` 只走 OCR 端口；划词、输入窗口和 `ocr-translate` 必须走同一个翻译端口。`listen` 和菜单栏 App 把热键接到选区来源、区域截屏和浮窗，不在 interface 里直接打 HTTP。菜单「输入翻译…」打开输入窗口。菜单栏设置页只改写允许的环境变量并重建现有用例。macOS `.app` 用嵌入式启动器加载同一套 `app:main`，不另写翻译语义。配置文件由 `resolve_env_path()` 选出一份，启动器只提供仓库路径，不把密钥或 `.env` 路径打进包内。
 
-OCR 由 `RoutingOcrEngine` 分流：默认先 `VisionOcrEngine`，再 `HttpOcrEngine`。图片文件读取位于 `infrastructure/image_file.py`。interfaces 不得直接调用 `httpx` 或拼装 OCR payload。浮窗只展示原文和译文。
+OCR 由 `RoutingOcrEngine` 分流：默认先 `VisionOcrEngine`，再 `HttpOcrEngine`。图片文件读取位于 `infrastructure/image_file.py`。interfaces 不得直接调用 `httpx` 或拼装 OCR payload。浮窗只展示原文和译文；点选后 `Command+C` 复制当前栏，未选中则复制全文。
 
 ## 变更与验证要求
 

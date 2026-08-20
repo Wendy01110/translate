@@ -20,7 +20,7 @@ class TranslateSettings(BaseSettings):
     api_key: SecretStr = SecretStr("")
     model: str = ""
     models: str = ""
-    provider: str = "openai"
+    provider: str = "google_web"
     region: str = ""
     timeout_seconds: float = Field(default=30.0, gt=0)
     source_lang: str = "auto"
@@ -161,7 +161,7 @@ class AppPreferences:
     ocr_base_url: str
     translate_api_key: str
     ocr_api_key: str
-    translate_provider: str = "openai"
+    translate_provider: str = "google_web"
     translate_region: str = ""
     translate_model_choices: tuple[str, ...] = ()
     ocr_model_choices: tuple[str, ...] = ()

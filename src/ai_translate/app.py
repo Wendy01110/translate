@@ -19,6 +19,7 @@ from ai_translate.infrastructure.selected_text import (
     request_accessibility_prompt,
 )
 from ai_translate.interfaces.cli import CliServices, run
+from ai_translate.interfaces.input_box import InputTranslatePresenter
 from ai_translate.interfaces.listen import DesktopListener
 from ai_translate.interfaces.menubar import cocoa_app_loop, run_status_app
 from ai_translate.interfaces.overlay import OverlayPresenter
@@ -76,9 +77,14 @@ def _build_services(settings: Settings, args: Sequence[str]) -> CliServices:
                 load=lambda: Settings.load().preferences(),
                 save=save_preferences,
             )
+            input_ui = InputTranslatePresenter(translate=listener.handle_typed_text)
 
             def start_app_run() -> int:
-                return run_status_app(listener, open_settings=settings_ui.show)
+                return run_status_app(
+                    listener,
+                    open_settings=settings_ui.show,
+                    open_input=input_ui.show,
+                )
 
             start_app = start_app_run
         else:

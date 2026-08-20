@@ -147,7 +147,7 @@ def parse_settings_form(
     ocr_url = normalize_api_base_url(ocr_base_url, side="OCR")
     translate_key = translate_api_key.strip()
     ocr_key = ocr_api_key.strip()
-    provider = translate_provider.strip().lower() or "openai"
+    provider = translate_provider.strip().lower() or "google_web"
     if provider not in TRANSLATE_PROVIDERS:
         raise ValueError("翻译来源不支持")
     region = translate_region.strip()
@@ -345,6 +345,11 @@ class _SettingsWindow:
         self._status.setEditable_(False)
         self._status.setSelectable_(False)
         content.addSubview_(self._status)
+        apply = NSButton.alloc().initWithFrame_(NSMakeRect(174, 16, 90, 28))
+        apply.setTitle_("应用")
+        apply.setBezelStyle_(1)
+        apply.setTarget_(controller)
+        apply.setAction_("applySettings:")
         save = NSButton.alloc().initWithFrame_(NSMakeRect(272, 16, 90, 28))
         save.setTitle_("保存")
         save.setBezelStyle_(1)
@@ -355,6 +360,7 @@ class _SettingsWindow:
         cancel.setBezelStyle_(1)
         cancel.setTarget_(controller)
         cancel.setAction_("cancelSettings:")
+        content.addSubview_(apply)
         content.addSubview_(save)
         content.addSubview_(cancel)
         self._window = window
@@ -397,7 +403,7 @@ class _SettingsWindow:
         self._window.orderOut_(None)
         NSApp.setActivationPolicy_(1)
 
-    def save(self) -> None:
+    def apply(self) -> bool:
         self._cancel_hotkey_record()
         try:
             prefs = parse_settings_form(
@@ -423,8 +429,13 @@ class _SettingsWindow:
             self._save_prefs(prefs)
         except ValueError as exc:
             self._status.setStringValue_(str(exc))
-            return
-        self.close()
+            return False
+        self._status.setStringValue_("已应用")
+        return True
+
+    def save(self) -> None:
+        if self.apply() and should_close_settings_after_commit("save"):
+            self.close()
 
     def begin_hotkey_record(self, which: str) -> None:
         if self._recording == which:
@@ -654,6 +665,14 @@ def should_center_settings(*, visible: bool) -> bool:
     return not visible
 
 
+def should_close_settings_after_commit(action: str) -> bool:
+    if action == "apply":
+        return False
+    if action == "save":
+        return True
+    raise ValueError("settings commit action must be apply or save")
+
+
 def _fill_combo(combo, choices: tuple[str, ...], current: str) -> None:
     combo.removeAllItems()
     values = list(choices)
@@ -671,6 +690,11 @@ def _settings_controller_class() -> type:
     from Foundation import NSObject
 
     class AITranslateSettingsController(NSObject):
+        def applySettings_(self, _sender) -> None:
+            owner = getattr(self, "owner", None)
+            if owner is not None:
+                owner.apply()
+
         def saveSettings_(self, _sender) -> None:
             owner = getattr(self, "owner", None)
             if owner is not None:

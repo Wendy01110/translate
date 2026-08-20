@@ -91,7 +91,7 @@ def test_unconfigured_translator_does_not_call_http() -> None:
         raise AssertionError(f"unexpected request: {request.url}")
 
     translator = HttpTranslator(
-        TranslateSettings(_env_file=None),
+        TranslateSettings(_env_file=None, provider="openai"),
         client=httpx.Client(transport=httpx.MockTransport(handler)),
     )
     result = translator.translate(

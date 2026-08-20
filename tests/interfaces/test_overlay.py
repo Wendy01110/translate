@@ -2,7 +2,11 @@ from ai_translate.core.models import JobKind, JobStatus, TranslateJob
 from ai_translate.interfaces.overlay import (
     _applescript_string,
     _prepare_overlay_window,
+    _text_view_copy_payload,
+    edit_menu_commands,
     format_overlay,
+    overlay_becomes_key_only_if_needed,
+    overlay_text_for_copy,
     should_center_overlay,
     should_focus_overlay,
 )
@@ -21,6 +25,38 @@ def test_overlay_keeps_full_long_text() -> None:
     )
     assert content.source == source
     assert content.translation == translation
+
+
+def test_overlay_copy_uses_selection_or_full_text() -> None:
+    assert overlay_text_for_copy(selection="你好", full="你好世界") == "你好"
+    assert overlay_text_for_copy(selection="", full="你好世界") == "你好世界"
+
+
+def test_text_view_copy_payload_reads_selected_range() -> None:
+    class _View:
+        def string(self) -> str:
+            return "你好世界"
+
+        def selectedRange(self) -> tuple[int, int]:
+            return (0, 2)
+
+    assert _text_view_copy_payload(_View()) == "你好"
+
+    class _Empty:
+        def string(self) -> str:
+            return "你好世界"
+
+        def selectedRange(self) -> tuple[int, int]:
+            return (0, 0)
+
+    assert _text_view_copy_payload(_Empty()) == "你好世界"
+
+
+def test_edit_menu_binds_command_c_to_copy() -> None:
+    commands = dict((action, key) for _title, action, key in edit_menu_commands())
+    assert commands["copy:"] == "c"
+    assert commands["selectAll:"] == "a"
+    assert overlay_becomes_key_only_if_needed() is False
 
 
 def test_set_scrollable_text_writes_and_scrolls_to_top() -> None:
@@ -143,10 +179,15 @@ def test_overlay_window_stays_visible_when_app_is_inactive() -> None:
         def setFloatingPanel_(self, value: object) -> None:
             self.floating = value
 
+        def setBecomesKeyOnlyIfNeeded_(self, value: object) -> None:
+            self.becomes_key_only_if_needed = value
+
         def setCollectionBehavior_(self, _value: object) -> None:
             return None
 
     window = _Window()
+    window.becomes_key_only_if_needed = True
     _prepare_overlay_window(window)
     assert window.hides_on_deactivate is False
     assert window.floating is True
+    assert window.becomes_key_only_if_needed is False

@@ -210,6 +210,36 @@ def test_replace_runtime_updates_ocr_service_and_hotkeys() -> None:
     assert created[-1].mapping.keys() >= {"alt+a", "alt+s"}
 
 
+def test_typed_text_reuses_selection_translator() -> None:
+    translator = FakeTranslator(translated_text="你好")
+    listener, presenter = _listener(
+        selection=SelectionTranslateService(translator),
+    )
+    job = listener.handle_typed_text("Hello")
+    assert job.status is JobStatus.SUCCESS
+    assert job.translated_text == "你好"
+    assert translator.calls[0].text == "Hello"
+    assert presenter.jobs == []
+
+
+def test_typed_text_empty_does_not_call_translator() -> None:
+    translator = FakeTranslator()
+    listener, _ = _listener(selection=SelectionTranslateService(translator))
+    job = listener.handle_typed_text("   ")
+    assert job.error == "empty_text"
+    assert translator.calls == []
+
+
+def test_typed_text_busy_lock_returns_busy() -> None:
+    translator = FakeTranslator(translated_text="你好")
+    listener, _ = _listener(selection=SelectionTranslateService(translator))
+    listener._busy.acquire()
+    job = listener.handle_typed_text("Hello")
+    listener._busy.release()
+    assert job.error == "busy"
+    assert translator.calls == []
+
+
 def test_busy_lock_ignores_second_trigger() -> None:
     started = {"n": 0}
 

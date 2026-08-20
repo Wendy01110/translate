@@ -80,10 +80,17 @@ def test_microsoft_ready_needs_key_and_region(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_blank_model_is_not_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRANSLATE_PROVIDER", "openai")
     monkeypatch.setenv("TRANSLATE_BASE_URL", "https://translate.example/v1")
     monkeypatch.setenv("TRANSLATE_MODEL", "   ")
     settings = TranslateSettings(_env_file=None)
     assert settings.ready is False
+
+
+def test_default_provider_is_google_web_and_ready() -> None:
+    settings = TranslateSettings(_env_file=None)
+    assert settings.provider == "google_web"
+    assert settings.ready is True
 
 
 def test_ocr_image_mode_auto_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -244,6 +251,7 @@ def test_preferences_round_trip_ocr_engine() -> None:
     assert prefs.to_env()["TRANSLATE_BASE_URL"] == ""
     assert prefs.to_env()["TRANSLATE_API_KEY"] == ""
     assert prefs.to_env()["OCR_API_KEY"] == ""
+    assert prefs.to_env()["TRANSLATE_PROVIDER"] == "google_web"
 
 
 def test_preferences_copy_api_endpoint_and_key(monkeypatch: pytest.MonkeyPatch) -> None:

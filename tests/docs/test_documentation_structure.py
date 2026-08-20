@@ -64,6 +64,15 @@ def test_plan_index_lists_all_active_and_skipped_plans() -> None:
     assert listed >= expected
 
 
+def test_root_readme_is_user_facing() -> None:
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "./scripts/install.sh" in readme
+    assert (PROJECT_ROOT / "scripts" / "install.sh").is_file()
+    assert "AGENTS.md" not in readme
+    assert "docs/plan/" not in readme
+    assert "pytest" not in readme
+
+
 def test_recent_completed_section_respects_limit() -> None:
     index = (DOCS_ROOT / "plan" / "README.md").read_text(encoding="utf-8")
     _, _, tail = index.partition("## 最近完成")

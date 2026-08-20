@@ -65,6 +65,23 @@ def should_focus_overlay(*, visible: bool) -> bool:
     return not visible
 
 
+def overlay_becomes_key_only_if_needed() -> bool:
+    return False
+
+
+def overlay_text_for_copy(*, selection: str, full: str) -> str:
+    return selection if selection else full
+
+
+def edit_menu_commands() -> tuple[tuple[str, str, str], ...]:
+    return (
+        ("Cut", "cut:", "x"),
+        ("Copy", "copy:", "c"),
+        ("Paste", "paste:", "v"),
+        ("Select All", "selectAll:", "a"),
+    )
+
+
 class StdoutPresenter:
     def show_status(self, message: str, source: str | None = None) -> None:
         return None
@@ -111,7 +128,6 @@ class _AppKitBackend:
             NSScrollView,
             NSSplitView,
             NSTextField,
-            NSTextView,
             NSView,
             NSViewHeightSizable,
             NSViewMinYMargin,
@@ -128,7 +144,6 @@ class _AppKitBackend:
         self._NSScrollView = NSScrollView
         self._NSSplitView = NSSplitView
         self._NSTextField = NSTextField
-        self._NSTextView = NSTextView
         self._NSView = NSView
         self._NSBezelBorder = NSBezelBorder
         self._width_sizable = NSViewWidthSizable
@@ -176,6 +191,7 @@ class _AppKitBackend:
         if should_focus_overlay(visible=visible):
             NSApp.activateIgnoringOtherApps_(True)
             self._window.makeKeyAndOrderFront_(None)
+            self._window.makeFirstResponder_(self._translation)
         self._window.orderFrontRegardless()
 
     def _build_window(self) -> None:
@@ -186,6 +202,7 @@ class _AppKitBackend:
             False,
         )
         window.setMinSize_((360.0, 300.0))
+        ensure_edit_menu()
         _prepare_overlay_window(window)
         content = window.contentView()
         bounds = content.bounds()
@@ -237,7 +254,9 @@ class _AppKitBackend:
         scroll.setHasHorizontalScroller_(False)
         scroll.setAutohidesScrollers_(True)
         scroll.setBorderType_(self._NSBezelBorder)
-        text = self._NSTextView.alloc().initWithFrame_(self._NSMakeRect(0.0, 0.0, w, h))
+        text = _overlay_text_view_class().alloc().initWithFrame_(
+            self._NSMakeRect(0.0, 0.0, w, h)
+        )
         text.setEditable_(False)
         text.setSelectable_(True)
         text.setRichText_(False)
@@ -270,10 +289,67 @@ def _prepare_overlay_window(window: object) -> None:
     window.setReleasedWhenClosed_(False)
     window.setHidesOnDeactivate_(False)
     window.setFloatingPanel_(True)
+    set_needed = getattr(window, "setBecomesKeyOnlyIfNeeded_", None)
+    if callable(set_needed):
+        set_needed(overlay_becomes_key_only_if_needed())
     window.setCollectionBehavior_(
         NSWindowCollectionBehaviorCanJoinAllSpaces
         | NSWindowCollectionBehaviorFullScreenAuxiliary
     )
+
+
+def ensure_edit_menu() -> None:
+    from AppKit import NSApp, NSMenu, NSMenuItem
+
+    app = NSApp
+    if app.mainMenu() is not None:
+        return
+    menu = NSMenu.alloc().init()
+    edit = NSMenu.alloc().initWithTitle_("Edit")
+    for title, action, key in edit_menu_commands():
+        edit.addItemWithTitle_action_keyEquivalent_(title, action, key)
+    item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Edit", None, "")
+    item.setSubmenu_(edit)
+    menu.addItem_(item)
+    app.setMainMenu_(menu)
+
+
+def _overlay_text_view_class() -> type:
+    global _OverlayTextView
+    if _OverlayTextView is not None:
+        return _OverlayTextView
+    from AppKit import NSTextView
+    import objc
+
+    class AITranslateOverlayTextView(NSTextView):
+        def copy_(self, _sender) -> None:
+            _copy_plain_text(_text_view_copy_payload(self))
+
+        def acceptsFirstResponder(self) -> bool:
+            return True
+
+    _OverlayTextView = AITranslateOverlayTextView
+    return AITranslateOverlayTextView
+
+
+def _text_view_copy_payload(view: object) -> str:
+    full = str(view.string() or "")
+    selected = view.selectedRange()
+    start = int(getattr(selected, "location", selected[0]))
+    length = int(getattr(selected, "length", selected[1]))
+    piece = full[start : start + length] if length > 0 else ""
+    return overlay_text_for_copy(selection=piece, full=full)
+
+
+def _copy_plain_text(text: str) -> None:
+    from AppKit import NSPasteboard, NSPasteboardTypeString
+
+    board = NSPasteboard.generalPasteboard()
+    board.clearContents()
+    board.setString_forType_(text, NSPasteboardTypeString)
+
+
+_OverlayTextView = None
 
 
 def _footnote(job: TranslateJob) -> str:

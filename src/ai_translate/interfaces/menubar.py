@@ -24,6 +24,7 @@ def menu_spec(
     return [
         (f"划词翻译  {display_hotkey(selection_hotkey)}", "selection"),
         (f"截图翻译  {display_hotkey(ocr_hotkey)}", "ocr"),
+        ("输入翻译…", "input"),
         (permission, "accessibility"),
         ("设置…", "settings"),
         ("退出", "quit"),
@@ -34,9 +35,17 @@ MENU_ACTION_DELAY = 0.2
 
 
 def consume_pending_settings(holder: object) -> bool:
-    if not bool(getattr(holder, "pending_settings", False)):
+    return _consume_pending(holder, "pending_settings")
+
+
+def consume_pending_input(holder: object) -> bool:
+    return _consume_pending(holder, "pending_input")
+
+
+def _consume_pending(holder: object, attr: str) -> bool:
+    if not bool(getattr(holder, attr, False)):
         return False
-    setattr(holder, "pending_settings", False)
+    setattr(holder, attr, False)
     return True
 
 
@@ -74,6 +83,7 @@ def run_status_app(
     listener: DesktopListener,
     *,
     open_settings: Callable[[], None] | None = None,
+    open_input: Callable[[], None] | None = None,
 ) -> int:
     if sys.platform != "darwin":
         print("app is only supported on macOS", file=sys.stderr)
@@ -81,7 +91,11 @@ def run_status_app(
     if not _acquire_single_instance():
         print("AI Translate is already running", file=sys.stderr)
         return 1
-    _install_status_item(listener, open_settings=open_settings)
+    _install_status_item(
+        listener,
+        open_settings=open_settings,
+        open_input=open_input,
+    )
     return listener.run()
 
 
@@ -95,6 +109,7 @@ def _install_status_item(
     listener: DesktopListener,
     *,
     open_settings: Callable[[], None] | None = None,
+    open_input: Callable[[], None] | None = None,
 ) -> None:
     from AppKit import (
         NSApplication,
@@ -104,8 +119,11 @@ def _install_status_item(
         NSVariableStatusItemLength,
     )
 
+    from ai_translate.interfaces.overlay import ensure_edit_menu
+
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(1)
+    ensure_edit_menu()
     menu = NSMenu.alloc().init()
     selection_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
         f"划词翻译  {display_hotkey(listener.selection_hotkey)}",
@@ -122,6 +140,11 @@ def _install_status_item(
         "openAccessibility:",
         "",
     )
+    input_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        "输入翻译…",
+        "openInput:",
+        "",
+    )
     settings_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
         "设置…",
         "openSettings:",
@@ -132,14 +155,20 @@ def _install_status_item(
         "quitApp:",
         "q",
     )
-    controller = _menu_controller_class().alloc().initWithListener_permissionItem_openSettings_(
-        listener,
-        permission_item,
-        open_settings,
+    controller = (
+        _menu_controller_class()
+        .alloc()
+        .initWithListener_permissionItem_openSettings_openInput_(
+            listener,
+            permission_item,
+            open_settings,
+            open_input,
+        )
     )
     for item in (
         selection_item,
         ocr_item,
+        input_item,
         permission_item,
         settings_item,
         quit_item,
@@ -147,6 +176,7 @@ def _install_status_item(
         item.setTarget_(controller)
     menu.addItem_(selection_item)
     menu.addItem_(ocr_item)
+    menu.addItem_(input_item)
     menu.addItem_(NSMenuItem.separatorItem())
     menu.addItem_(permission_item)
     menu.addItem_(settings_item)
@@ -194,11 +224,12 @@ def _menu_controller_class() -> type:
     import objc
 
     class AITranslateMenuBarController(NSObject):
-        def initWithListener_permissionItem_openSettings_(
+        def initWithListener_permissionItem_openSettings_openInput_(
             self,
             hosted,
             permission_item,
             open_settings_cb,
+            open_input_cb,
         ):
             self = objc.super(AITranslateMenuBarController, self).init()
             if self is None:
@@ -206,7 +237,9 @@ def _menu_controller_class() -> type:
             self.listener = hosted
             self.permission_item = permission_item
             self.open_settings_cb = open_settings_cb
+            self.open_input_cb = open_input_cb
             self.pending_settings = False
+            self.pending_input = False
             return self
 
         def translateSelection_(self, _sender) -> None:
@@ -231,11 +264,28 @@ def _menu_controller_class() -> type:
                 MENU_ACTION_DELAY,
             )
 
-        def menuDidClose_(self, _menu) -> None:
-            if not self.pending_settings:
+        def openInput_(self, _sender) -> None:
+            if self.open_input_cb is None:
                 return
-            NSObject.cancelPreviousPerformRequestsWithTarget_(self)
-            self.performSelector_withObject_afterDelay_("openSettingsNow:", None, 0.05)
+            self.pending_input = True
+            self.performSelector_withObject_afterDelay_(
+                "openInputNow:",
+                None,
+                MENU_ACTION_DELAY,
+            )
+
+        def menuDidClose_(self, _menu) -> None:
+            if self.pending_settings:
+                NSObject.cancelPreviousPerformRequestsWithTarget_(self)
+                self.performSelector_withObject_afterDelay_(
+                    "openSettingsNow:",
+                    None,
+                    0.05,
+                )
+                return
+            if self.pending_input:
+                NSObject.cancelPreviousPerformRequestsWithTarget_(self)
+                self.performSelector_withObject_afterDelay_("openInputNow:", None, 0.05)
 
         def openSettingsNow_(self, _sender) -> None:
             if not consume_pending_settings(self):
@@ -250,6 +300,20 @@ def _menu_controller_class() -> type:
                 present = getattr(self.listener, "present_error", None)
                 if callable(present):
                     present(f"设置页打不开：{exc}")
+
+        def openInputNow_(self, _sender) -> None:
+            if not consume_pending_input(self):
+                return
+            callback = self.open_input_cb
+            if callback is None:
+                return
+            try:
+                callback()
+            except Exception as exc:
+                print(f"input window failed: {exc}", file=sys.stderr)
+                present = getattr(self.listener, "present_error", None)
+                if callable(present):
+                    present(f"输入翻译打不开：{exc}")
 
         def quitApp_(self, _sender) -> None:
             from AppKit import NSApp

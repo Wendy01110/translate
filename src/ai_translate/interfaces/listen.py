@@ -67,6 +67,24 @@ class DesktopListener:
     def handle_ocr(self) -> None:
         self._run_exclusive(self._ocr_job)
 
+    def handle_typed_text(self, text: str) -> TranslateJob:
+        if not self._busy.acquire(blocking=False):
+            return TranslateJob(
+                kind=JobKind.SELECTION,
+                status=JobStatus.FAILURE,
+                source_text=text,
+                translated_text=None,
+                error="busy",
+            )
+        try:
+            return self._selection.translate_text(
+                text,
+                self._source_lang,
+                self._target_lang,
+            )
+        finally:
+            self._busy.release()
+
     def run(self) -> int:
         if sys.platform != "darwin":
             print("listen is only supported on macOS", file=sys.stderr)

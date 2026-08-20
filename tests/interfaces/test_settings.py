@@ -5,6 +5,7 @@ from ai_translate.interfaces.settings import (
     provider_form,
     settings_window_height,
     should_center_settings,
+    should_close_settings_after_commit,
 )
 
 
@@ -56,6 +57,11 @@ def test_parse_settings_form_accepts_deepl_provider() -> None:
     prefs = parse_settings_form(**_form(translate_provider="deepl", translate_base_url=""))
     assert prefs.translate_provider == "deepl"
     assert prefs.to_env()["TRANSLATE_PROVIDER"] == "deepl"
+
+
+def test_parse_settings_form_blank_provider_defaults_to_google_web() -> None:
+    prefs = parse_settings_form(**_form(translate_provider="  "))
+    assert prefs.translate_provider == "google_web"
 
 
 def test_parse_settings_form_accepts_google_web_without_url() -> None:
@@ -159,3 +165,10 @@ def test_parse_settings_form_microsoft_requires_region() -> None:
 def test_parse_settings_form_rejects_invalid_api_url() -> None:
     with pytest.raises(ValueError, match="http://"):
         parse_settings_form(**_form(translate_base_url="ftp://example"))
+
+
+def test_apply_keeps_window_open_and_save_closes() -> None:
+    assert should_close_settings_after_commit("apply") is False
+    assert should_close_settings_after_commit("save") is True
+    with pytest.raises(ValueError, match="apply or save"):
+        should_close_settings_after_commit("cancel")

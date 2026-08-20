@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from ai_translate.interfaces import menubar
 from ai_translate.interfaces.menubar import (
+    consume_pending_input,
     consume_pending_settings,
     defer_menu_action,
     display_hotkey,
@@ -15,6 +16,13 @@ def test_settings_open_runs_once_after_menu_and_delayed_fire() -> None:
     assert consume_pending_settings(holder) is True
     assert holder.pending_settings is False
     assert consume_pending_settings(holder) is False
+
+
+def test_input_open_runs_once() -> None:
+    holder = SimpleNamespace(pending_input=True)
+    assert consume_pending_input(holder) is True
+    assert holder.pending_input is False
+    assert consume_pending_input(holder) is False
 
 
 def test_defer_menu_action_runs_after_scheduler() -> None:
@@ -36,14 +44,15 @@ def test_display_hotkey_uses_option_glyph() -> None:
     assert display_hotkey("cmd+shift+t") == "⇧⌘T"
 
 
-def test_menu_spec_lists_selection_ocr_and_quit() -> None:
+def test_menu_spec_lists_selection_ocr_input_and_quit() -> None:
     items = menu_spec("alt+e", "alt+w")
     assert items[0] == ("划词翻译  ⌥E", "selection")
     assert items[1] == ("截图翻译  ⌥W", "ocr")
-    assert items[2] == ("辅助功能：已开启", "accessibility")
+    assert items[2] == ("输入翻译…", "input")
+    assert items[3] == ("辅助功能：已开启", "accessibility")
     assert items[-1] == ("退出", "quit")
     denied = menu_spec("alt+e", "alt+w", accessibility_ok=False)
-    assert denied[2] == ("辅助功能：未开启，点此去设置", "accessibility")
+    assert denied[3] == ("辅助功能：未开启，点此去设置", "accessibility")
     assert items[-2] == ("设置…", "settings")
 
 
