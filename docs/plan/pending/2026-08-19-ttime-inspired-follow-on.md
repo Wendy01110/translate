@@ -26,7 +26,7 @@
 ## 明确不做或后置
 
 - 多源同时展示、插件市场、有道/百度/腾讯、内置离线词典：本轮不做。Google/Bing/DeepL 网页内置源见 [内置网页翻译源](../completed/2026-08-19-web-translate-sources.md)。
-- Windows/Linux 安装包和自动更新：等 macOS 热键路径稳定后再说。
+- Linux 安装包和自动更新继续后置；Windows 桌面入口已拆到 [Windows 桌面版 MVP](../in-progress/2026-08-20-windows-mvp.md)，首版不做自动更新。
 - 主题商店、多语言 UI、账号同步：不是当前痛点。
 - 悬浮球拖拽：可被菜单栏替代，不单独作为下一阶段。
 

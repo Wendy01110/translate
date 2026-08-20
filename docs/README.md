@@ -1,31 +1,34 @@
 # 文档入口
 
-> 更新时间：2026-08-20（Asia/Shanghai）
+> 更新时间：2026-08-21（Asia/Shanghai）
 
 本页是项目维护文档的唯一默认入口，只保留当前状态、活动任务和权威资料路由。面向使用者的最短路径见 [项目 README](../README.md)；日期化事实放在计划或日志，不在本页重复维护。
 
 ## 当前状态
 
-- 仓库已建立文档框架、Agent 规则和可安装的 Python 骨架。使用者安装入口是 `./scripts/install.sh`，会创建 `.venv` 并安装 `~/Applications/AI Translate.app`。
-- 翻译与 OCR 通过独立环境变量配置；翻译默认 Google 内置网页源（免密钥），也可选用 Bing/DeepL 内置或官方/OpenAI 兼容源；只读一个配置文件；`config-check` 回读路径和就绪状态，但不调用上游。
-- OCR 默认先走本机 Vision，不够再用 Unlimited-OCR。CLI 支持本地图片和 macOS 圈选截屏。
-- 划词和 OCR 可通过 `listen` 热键或菜单栏 App 触发；菜单「输入翻译…」打开输入窗口。浮窗只显示原文和译文，点选后可用 `Command+C` 复制。设置页按翻译来源只显示需要的字段；「应用」立即生效并留在窗口，「保存」写入后关闭；内置网页源不用密钥。
-- 用户本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。屏幕实时 OCR 首次验收发现同步圈选阻塞主线程，已改为异步圈选；后续时延反馈确认旧循环会在处理后额外等待，现已改为约 0.8 秒的目标起点间隔，待重启 App 复验。历史尚未实施。当前没有开放 Issue。
-- 正在收尾 [屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)；系统音频转写仍待进行。下一档其它产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的复制译文与有界历史。
+- 仓库已建立文档框架、Agent 规则和可安装的 Python 骨架。macOS 安装入口是 `./scripts/install.sh`，构建已接入项目应用图标；Windows 11 x64 源码候选入口是 `scripts/install-windows.ps1`，尚未完成 Windows 真机验收。
+- 翻译与 OCR 通过独立环境变量配置；OCR 内部分为本地普通、本地高级、API 普通和 API 高级四层。翻译默认 Google 内置网页源（免密钥），也可选用 Bing/DeepL 内置或官方/OpenAI 兼容源；只读一个配置文件；`config-check` 回读路径和分层静态状态，但不调用模型或上游。
+- macOS OCR 自动顺序是 Vision、可选 PP-OCRv6、OCR.space、Unlimited-OCR；Windows 暂无本地普通层，从可选 PP-OCRv6 开始。PaddleOCR 未安装时跳过；macOS PP-OCRv6 small 已完成一张本地实图验证，Windows 仍待真机验收。API 普通只尝试单张 1 MB 内图片，失败、超限或多页时转 API 高级。CLI 支持本地图片和平台圈选截屏。
+- 划词和 OCR 可通过 `listen` 热键或桌面 App 触发；macOS 使用菜单栏，Windows 候选使用系统托盘。输入窗口、设置、普通浮窗和实时字幕条复用同一业务用例，不在界面层另写翻译语义。
+- 用户在 macOS 本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。屏幕实时 OCR 已改为异步圈选和约 0.8 秒目标起点间隔，待重启 App 复验。Windows 平台组合、剪贴板、热键、圈选、截图、Tk 界面、托盘和源码安装候选已进入实施，但只有离线证据，不能声明 Windows 可用。历史尚未实施。当前没有开放 Issue。
+- 正在收尾 [屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)，并实施 [Windows 桌面版 MVP](./plan/in-progress/2026-08-20-windows-mvp.md) 与 [本地/API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)；系统音频转写仍待进行。下一档其它产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的复制译文与有界历史。
 
 ## 当前工作
 
-[屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)
+- [屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)
+- [Windows 桌面版 MVP](./plan/in-progress/2026-08-20-windows-mvp.md)
+- [本地与 API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)
 
 ## 按任务查找
 
 | 任务 | 入口 |
 | --- | --- |
-| 安装并检查配置 | [项目 README](../README.md)（`./scripts/install.sh`） |
+| 安装并检查配置 | [项目 README](../README.md)（macOS `./scripts/install.sh`；Windows `scripts/install-windows.ps1`） |
 | 确认首期做什么、不做什么 | [产品范围](./design/product-scope.md) |
 | 修改分层、端口或执行链 | [架构设计](./design/architecture.md) |
 | 修改环境变量或双模型边界 | [配置设计](./design/configuration.md) |
 | 修改 macOS 热键、菜单栏或浮窗 | [桌面热键设计](./design/desktop-hotkeys.md) |
+| 修改 Windows 热键、托盘或浮窗 | [Windows 桌面设计](./design/windows-desktop.md) |
 | 修改区域实时 OCR | [屏幕实时 OCR](./design/live-screen-ocr.md) |
 | 修改 OCR 本机/模型分流 | [OCR 分流](./design/ocr-routing.md) |
 | 更新计划、Issue 或日志 | [文档框架](./design/documentation-framework-guide.md) |

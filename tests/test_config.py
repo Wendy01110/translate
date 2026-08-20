@@ -3,12 +3,15 @@ import pytest
 
 from ai_translate.config import (
     HotkeySettings,
+    LocalAdvancedOcrSettings,
     OcrSettings,
     Settings,
+    StandardOcrSettings,
     TranslateSettings,
     normalize_api_base_url,
     parse_model_catalog,
     resolve_env_path,
+    user_env_path,
 )
 
 
@@ -19,6 +22,7 @@ def test_translate_and_ocr_use_separate_prefixes(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("OCR_BASE_URL", "https://ocr.example/v1")
     monkeypatch.setenv("OCR_API_KEY", "ocr-secret")
     monkeypatch.setenv("OCR_MODEL", "ocr-model")
+    monkeypatch.setenv("OCR_STANDARD_API_KEY", "standard-secret")
 
     settings = Settings.load(env_file=None)
 
@@ -30,7 +34,9 @@ def test_translate_and_ocr_use_separate_prefixes(monkeypatch: pytest.MonkeyPatch
     assert settings.ocr.base_url == "https://ocr.example/v1"
     assert settings.ocr.model == "ocr-model"
     assert settings.ocr.api_key.get_secret_value() == "ocr-secret"
+    assert settings.standard_ocr.api_key.get_secret_value() == "standard-secret"
     assert settings.translate.api_key.get_secret_value() != settings.ocr.api_key.get_secret_value()
+    assert settings.standard_ocr.api_key.get_secret_value() != settings.ocr.api_key.get_secret_value()
 
 
 def test_one_side_does_not_inherit_the_other_side(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -40,6 +46,7 @@ def test_one_side_does_not_inherit_the_other_side(monkeypatch: pytest.MonkeyPatc
     monkeypatch.delenv("OCR_BASE_URL", raising=False)
     monkeypatch.delenv("OCR_MODEL", raising=False)
     monkeypatch.delenv("OCR_API_KEY", raising=False)
+    monkeypatch.delenv("OCR_STANDARD_API_KEY", raising=False)
 
     settings = Settings.load(env_file=None)
 
@@ -49,6 +56,7 @@ def test_one_side_does_not_inherit_the_other_side(monkeypatch: pytest.MonkeyPatc
     assert settings.ocr.model == "Unlimited-OCR"
     assert settings.ocr.api_key.get_secret_value() == ""
     assert settings.ocr.image_mode == ""
+    assert settings.standard_ocr.api_key.get_secret_value() == ""
 
 
 def test_web_providers_are_ready_without_keys(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -128,6 +136,16 @@ def test_default_languages_are_auto_to_zh() -> None:
     assert ocr.image_mode == ""
     assert ocr.engine == "auto"
     assert ocr.min_confidence == 0.5
+    standard = StandardOcrSettings(_env_file=None)
+    assert standard.base_url == "https://api.ocr.space/parse/image"
+    assert standard.engine == 2
+    assert standard.language == "auto"
+    assert standard.timeout_seconds == 30.0
+    assert standard.ready is False
+    local_advanced = LocalAdvancedOcrSettings(_env_file=None)
+    assert local_advanced.model_tier == "tiny"
+    assert local_advanced.model == "PP-OCRv6_tiny"
+    assert local_advanced.device == "cpu"
 
 
 def test_ocr_capability_ready_allows_vision_without_model() -> None:
@@ -138,6 +156,37 @@ def test_ocr_capability_ready_allows_vision_without_model() -> None:
     assert settings.ocr.model_ready is False
     assert settings.ocr_capability_ready(True) is True
     assert settings.ocr_capability_ready(False) is False
+
+
+def test_ocr_capability_ready_supports_independent_standard_mode() -> None:
+    settings = Settings(
+        translate=TranslateSettings(_env_file=None),
+        ocr=OcrSettings(engine="standard", _env_file=None),
+        standard_ocr=StandardOcrSettings(
+            api_key="standard-secret",
+            _env_file=None,
+        ),
+    )
+    assert settings.ocr_ready is True
+    assert settings.ocr_capability_ready(False) is True
+    assert settings.ocr.model_ready is False
+
+
+def test_ocr_capability_ready_supports_local_advanced_mode() -> None:
+    settings = Settings(
+        translate=TranslateSettings(_env_file=None),
+        ocr=OcrSettings(engine="paddle", _env_file=None),
+    )
+    assert settings.ocr_capability_ready(False, True) is True
+    assert settings.ocr_capability_ready(True, False) is False
+
+
+def test_local_advanced_model_tier_is_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OCR_LOCAL_ADVANCED_MODEL_TIER", "huge")
+    with pytest.raises(ValidationError):
+        LocalAdvancedOcrSettings(_env_file=None)
 
 
 def test_resolve_env_path_prefers_override(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -215,6 +264,16 @@ def test_resolve_env_path_cli_defaults_to_project_file(
     assert resolve_env_path() == repo / ".env"
 
 
+def test_windows_user_env_path_uses_appdata(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    appdata = tmp_path / "Roaming"
+    monkeypatch.setattr("ai_translate.config.sys.platform", "win32")
+    monkeypatch.setenv("APPDATA", str(appdata))
+    assert user_env_path() == appdata / "AI Translate" / ".env"
+
+
 def test_load_uses_ai_translate_env_file_override(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -230,6 +289,7 @@ def test_load_uses_ai_translate_env_file_override(
         "TRANSLATE_API_KEY",
         "OCR_BASE_URL",
         "OCR_API_KEY",
+        "OCR_STANDARD_API_KEY",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("AI_TRANSLATE_ENV_FILE", str(env_path))
@@ -245,12 +305,15 @@ def test_preferences_round_trip_ocr_engine() -> None:
     )
     prefs = settings.preferences()
     assert prefs.ocr_engine == "auto"
+    assert prefs.ocr_local_advanced_model_tier == "tiny"
     assert prefs.to_env()["OCR_ENGINE"] == "auto"
+    assert prefs.to_env()["OCR_LOCAL_ADVANCED_MODEL_TIER"] == "tiny"
     assert prefs.to_env()["OCR_MODEL"] == "Unlimited-OCR"
     assert prefs.to_env()["TRANSLATE_MODEL"] == ""
     assert prefs.to_env()["TRANSLATE_BASE_URL"] == ""
     assert prefs.to_env()["TRANSLATE_API_KEY"] == ""
     assert prefs.to_env()["OCR_API_KEY"] == ""
+    assert prefs.to_env()["OCR_STANDARD_API_KEY"] == ""
     assert prefs.to_env()["TRANSLATE_PROVIDER"] == "google_web"
     assert prefs.to_env()["HOTKEY_LIVE_OCR"] == "alt+q"
 
@@ -260,11 +323,14 @@ def test_preferences_copy_api_endpoint_and_key(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("TRANSLATE_API_KEY", "translate-secret")
     monkeypatch.setenv("OCR_BASE_URL", "https://ocr.example/v1")
     monkeypatch.setenv("OCR_API_KEY", "ocr-secret")
+    monkeypatch.setenv("OCR_STANDARD_API_KEY", "standard-secret")
     prefs = Settings.load(env_file=None).preferences()
     assert prefs.translate_base_url == "https://translate.example/v1"
     assert prefs.translate_api_key == "translate-secret"
     assert prefs.ocr_api_key == "ocr-secret"
+    assert prefs.ocr_standard_api_key == "standard-secret"
     assert prefs.to_env()["OCR_BASE_URL"] == "https://ocr.example/v1"
+    assert prefs.to_env()["OCR_STANDARD_API_KEY"] == "standard-secret"
 
 
 def test_normalize_api_base_url_accepts_http_and_empty() -> None:

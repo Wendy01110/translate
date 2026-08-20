@@ -292,8 +292,8 @@ class DesktopListener:
             self._busy.release()
 
     def run(self) -> int:
-        if sys.platform != "darwin":
-            print("listen is only supported on macOS", file=sys.stderr)
+        if sys.platform not in {"darwin", "win32"}:
+            print("listen is only supported on macOS and Windows", file=sys.stderr)
             return 2
         mapping = {
             self._selection_hotkey: self.handle_selection,
@@ -583,10 +583,17 @@ class _PynputHotkeyListener:
 
 
 def _default_hotkey_factory(mapping: dict[str, Callable[[], None]]) -> object:
+    if sys.platform == "win32":
+        from ai_translate.interfaces.windows_desktop import WindowsHotkeyListener
+
+        return WindowsHotkeyListener(mapping)
     return _MacHotkeyListener(mapping)
 
 
 def _default_event_loop() -> None:
+    if sys.platform != "darwin":
+        _sleep_until_interrupt()
+        return
     try:
         from AppKit import NSApplication
         from Foundation import NSDate, NSDefaultRunLoopMode, NSRunLoop

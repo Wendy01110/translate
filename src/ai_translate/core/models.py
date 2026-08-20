@@ -84,10 +84,18 @@ class ConfigStatus:
     ocr_max_tokens: int
     ocr_engine: str
     ocr_vision_available: bool
+    ocr_local_advanced_available: bool
+    ocr_local_advanced_model: str
     hotkey_selection: str
     hotkey_ocr: str
     hotkey_live_ocr: str = "alt+q"
     env_file: str = ""
+    ocr_standard_ready: bool = False
+    ocr_standard_base_url: str = ""
+    ocr_standard_api_key_set: bool = False
+    ocr_standard_engine: int = 2
+    ocr_standard_max_image_bytes: int = 1_000_000
+    ocr_advanced_ready: bool = False
 
 
 @dataclass(frozen=True)

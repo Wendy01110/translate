@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from ai_translate.config import (
     OCR_ENGINES,
     OCR_IMAGE_MODES,
+    PADDLE_OCR_MODEL_TIERS,
     TRANSLATE_PROVIDERS,
     AppPreferences,
     normalize_api_base_url,
@@ -28,9 +29,16 @@ PROVIDER_OPTIONS: tuple[tuple[str, str], ...] = (
     ("google", "Google 官方"),
 )
 ENGINE_OPTIONS: tuple[tuple[str, str], ...] = (
-    ("auto", "自动（本机优先）"),
-    ("vision", "只本机 Vision"),
-    ("model", "只 OCR 模型"),
+    ("auto", "自动（本地两层 → API 两层）"),
+    ("vision", "只本地普通（Vision）"),
+    ("paddle", "只本地高级（PaddleOCR）"),
+    ("standard", "只 API 普通（OCR.space）"),
+    ("model", "只 API 高级模型"),
+)
+LOCAL_ADVANCED_MODEL_TIER_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("tiny", "tiny（默认，轻量）"),
+    ("small", "small"),
+    ("medium", "medium"),
 )
 IMAGE_MODE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("auto", "自动"),
@@ -105,7 +113,7 @@ def provider_form(provider: str) -> ProviderForm:
     return ProviderForm(True, True, False, True, "翻译来源不支持。")
 
 
-SETTINGS_ALWAYS_ROWS = 11
+SETTINGS_ALWAYS_ROWS = 13
 
 
 def settings_window_height(*, extra_rows: int) -> float:
@@ -115,6 +123,7 @@ def settings_window_height(*, extra_rows: int) -> float:
 def parse_settings_form(
     *,
     ocr_engine: str,
+    ocr_local_advanced_model_tier: str,
     ocr_min_confidence: str,
     ocr_image_mode: str,
     source_lang: str,
@@ -128,12 +137,16 @@ def parse_settings_form(
     ocr_base_url: str,
     translate_api_key: str,
     ocr_api_key: str,
+    ocr_standard_api_key: str,
     translate_provider: str,
     translate_region: str,
 ) -> AppPreferences:
     engine = ocr_engine.strip().lower()
     if engine not in OCR_ENGINES:
-        raise ValueError("OCR 方法必须是 auto、vision 或 model")
+        raise ValueError("OCR 方法必须是 auto、vision、paddle、standard 或 model")
+    local_advanced_model_tier = ocr_local_advanced_model_tier.strip().lower()
+    if local_advanced_model_tier not in PADDLE_OCR_MODEL_TIERS:
+        raise ValueError("本地 Paddle 档位必须是 tiny、small 或 medium")
     try:
         confidence = float(ocr_min_confidence.strip())
     except ValueError as exc:
@@ -167,6 +180,7 @@ def parse_settings_form(
         raise ValueError("划词、OCR 和实时翻译热键不能相同")
     return AppPreferences(
         ocr_engine=engine,
+        ocr_local_advanced_model_tier=local_advanced_model_tier,
         ocr_min_confidence=confidence,
         ocr_image_mode=mode,
         source_lang=source,
@@ -180,6 +194,7 @@ def parse_settings_form(
         ocr_base_url=ocr_url,
         translate_api_key=translate_key,
         ocr_api_key=ocr_key,
+        ocr_standard_api_key=ocr_standard_api_key.strip(),
         translate_provider=provider,
         translate_region=region,
     )
@@ -188,6 +203,7 @@ def parse_settings_form(
 def fallback_preferences() -> AppPreferences:
     return AppPreferences(
         ocr_engine="auto",
+        ocr_local_advanced_model_tier="tiny",
         ocr_min_confidence=0.5,
         ocr_image_mode="auto",
         source_lang="auto",
@@ -201,6 +217,7 @@ def fallback_preferences() -> AppPreferences:
         ocr_base_url="",
         translate_api_key="",
         ocr_api_key="",
+        ocr_standard_api_key="",
         translate_provider="google_web",
         translate_region="",
     )
@@ -299,13 +316,30 @@ class _SettingsWindow:
             content, "翻译模型", 16, y
         )
         y -= 40
-        self._ocr_base_url, self._ocr_url_label = self._field(content, "OCR API", 16, y)
-        y -= 40
-        self._ocr_api_key, self._ocr_key_label = self._secure_field(
-            content, "OCR 密钥", 16, y
+        self._ocr_standard_api_key, self._ocr_standard_key_label = self._secure_field(
+            content,
+            "普通 OCR 密钥",
+            16,
+            y,
         )
         y -= 40
-        self._ocr_model, self._ocr_model_label = self._combo(content, "OCR 模型", 16, y)
+        self._ocr_base_url, self._ocr_url_label = self._field(
+            content,
+            "高级 OCR API",
+            16,
+            y,
+        )
+        y -= 40
+        self._ocr_api_key, self._ocr_key_label = self._secure_field(
+            content, "高级 OCR 密钥", 16, y
+        )
+        y -= 40
+        self._ocr_model, self._ocr_model_label = self._combo(
+            content,
+            "高级 OCR 模型",
+            16,
+            y,
+        )
         y -= 40
         self._engine, self._engine_label = self._popup(
             content,
@@ -313,6 +347,16 @@ class _SettingsWindow:
             ENGINE_OPTIONS,
             16,
             y,
+        )
+        y -= 40
+        self._local_advanced_model_tier, self._local_advanced_model_tier_label = (
+            self._popup(
+                content,
+                "本地 Paddle 档位",
+                LOCAL_ADVANCED_MODEL_TIER_OPTIONS,
+                16,
+                y,
+            )
         )
         y -= 40
         self._confidence, self._confidence_label = self._field(
@@ -426,6 +470,10 @@ class _SettingsWindow:
         try:
             prefs = parse_settings_form(
                 ocr_engine=_selected_value(self._engine, ENGINE_OPTIONS),
+                ocr_local_advanced_model_tier=_selected_value(
+                    self._local_advanced_model_tier,
+                    LOCAL_ADVANCED_MODEL_TIER_OPTIONS,
+                ),
                 ocr_min_confidence=self._confidence.stringValue(),
                 ocr_image_mode=_selected_value(self._image_mode, IMAGE_MODE_OPTIONS),
                 source_lang=_selected_value(self._source_lang, SOURCE_LANG_OPTIONS),
@@ -439,6 +487,7 @@ class _SettingsWindow:
                 ocr_base_url=self._ocr_base_url.stringValue(),
                 translate_api_key=self._translate_api_key.stringValue(),
                 ocr_api_key=self._ocr_api_key.stringValue(),
+                ocr_standard_api_key=self._ocr_standard_api_key.stringValue(),
                 translate_provider=_selected_value(
                     self._translate_provider,
                     PROVIDER_OPTIONS,
@@ -483,8 +532,14 @@ class _SettingsWindow:
         )
         self._ocr_base_url.setStringValue_(prefs.ocr_base_url)
         self._ocr_api_key.setStringValue_(prefs.ocr_api_key)
+        self._ocr_standard_api_key.setStringValue_(prefs.ocr_standard_api_key)
         _fill_combo(self._ocr_model, prefs.ocr_model_choices, prefs.ocr_model)
         _select_value(self._engine, ENGINE_OPTIONS, prefs.ocr_engine)
+        _select_value(
+            self._local_advanced_model_tier,
+            LOCAL_ADVANCED_MODEL_TIER_OPTIONS,
+            prefs.ocr_local_advanced_model_tier,
+        )
         self._confidence.setStringValue_(f"{prefs.ocr_min_confidence:g}")
         _select_value(self._image_mode, IMAGE_MODE_OPTIONS, prefs.ocr_image_mode)
         _select_value(self._source_lang, SOURCE_LANG_OPTIONS, prefs.source_lang)
@@ -522,10 +577,15 @@ class _SettingsWindow:
                 self._place(label, control, y)
                 y -= 40.0
         always = (
+            (self._ocr_standard_key_label, self._ocr_standard_api_key),
             (self._ocr_url_label, self._ocr_base_url),
             (self._ocr_key_label, self._ocr_api_key),
             (self._ocr_model_label, self._ocr_model),
             (self._engine_label, self._engine),
+            (
+                self._local_advanced_model_tier_label,
+                self._local_advanced_model_tier,
+            ),
             (self._confidence_label, self._confidence),
             (self._image_mode_label, self._image_mode),
             (self._source_label, self._source_lang),

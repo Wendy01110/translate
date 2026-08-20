@@ -14,22 +14,23 @@
 | --- | --- |
 | 区域矩形 | `core/models.py` 的 `ScreenRect` |
 | 单步策略 | `features/ocr_translate.py` 的 `advance_live` |
-| 固定区域截屏 | `infrastructure/screenshot.py` |
-| 圈选与字幕条 | `interfaces/region_picker.py`、`interfaces/live_overlay.py` |
+| 固定区域截屏 | `infrastructure/screenshot.py`、`infrastructure/windows_desktop.py` |
+| 圈选与字幕条 | `interfaces/region_picker.py`、`interfaces/live_overlay.py`、`interfaces/windows_desktop.py` |
 | 开停与热键 | `interfaces/listen.py`、`HOTKEY_LIVE_OCR` |
 
 ## 核心约束
 
 - 开始必须先圈选；取消圈选不截屏、不调用上游。
-- 圈选必须由 AppKit 主线程异步回调结果，不得在主线程手写 `NSRunLoop` 轮询；圈选中再次触发实时热键会取消圈选，单次 OCR 触发则忽略，不得重入第二个圈选器。
+- 圈选必须由平台 UI 主线程异步回调结果，不得在主线程手写阻塞轮询；圈选中再次触发实时热键会取消圈选，单次 OCR 触发则忽略，不得重入第二个圈选器。
 - 每轮目标起点间隔固定为 0.8 秒；截屏、OCR 和翻译耗时计入间隔，某轮超过目标间隔时结束后再继续，不得并行打两条实时流。
 - 截屏范围必须是用户圈定的矩形，不得改成整屏。
-- 圈选和字幕条使用 AppKit 左下原点坐标；固定截屏前必须按主显示器高度转换为 Quartz 左上原点坐标，不能把圈选矩形的 `y` 原样交给 Quartz。
+- macOS 圈选和字幕条使用 AppKit 左下原点坐标，固定截屏前按主显示器高度转换为 Quartz 左上原点坐标；Windows 统一使用虚拟桌面左上原点的物理像素坐标，并保留负坐标副屏。
 - 图片指纹相同则不调用 OCR；识别文本与上一拍相同则不调用翻译。
+- 每个变化帧仍只调用同一个分流 `OcrEngine`：自动模式按本地普通、本地高级、API 普通、API 高级顺序串行升级，任一层成功后不得调用后续层，也不得并行竞速。
 - 识别为空时字幕条清空，不得继续显示上一句译文。翻译失败时显示错误或空白，不得用上一句成功译文冒充当前句。
 - 字幕条必须放在圈选区域外侧，避免把译文截进下一帧。
 - 停止后不再开始下一步截屏、OCR 或翻译；已在途的调用即使返回也必须丢弃，不能覆盖新一轮状态或重新弹出字幕条。关闭字幕条视为停止。
-- 字幕条的显示和隐藏都必须回到 AppKit 主线程。
+- 字幕条的显示和隐藏都必须回到平台 UI 主线程。
 - 实时路径不得读取翻译配置去顶替 OCR，也不得把图像直接交给翻译端口。
 
 ## 主流程
@@ -52,5 +53,5 @@
 ## 变更与验证要求
 
 - 修改间隔、跳过规则或失败是否沿用旧译文时，同步本文、`advance_live` 测试和用户 README。
-- 圈选、截屏和循环必须可注入，默认测试不得截真实屏幕或打真实模型。
+- 圈选、截屏和循环必须可注入，默认测试不得截真实屏幕、初始化 PaddleOCR 模型、调用 Vision、OCR.space、API 高级 OCR 或翻译上游。
 - 不得在测试或文档中写入真实截屏、识别全文或密钥。

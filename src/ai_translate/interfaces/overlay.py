@@ -18,8 +18,8 @@ _ERROR_TEXT = {
         "未开启辅助功能，无法读取选区。\n"
         "请打开：系统设置 → 隐私与安全性 → 辅助功能 → AI Translate。"
     ),
-    "empty_text": "没有读到选中的文字。请先选中，或先 Command+C 再按热键。",
-    "copy_simulation_failed": "无法模拟复制。请检查辅助功能权限。",
+    "empty_text": "没有读到选中的文字。请先选中，或先复制后再按热键。",
+    "copy_simulation_failed": "无法模拟复制。请先手动复制后再按热键。",
     "clipboard_read_failed": "无法读取剪贴板。",
     "clipboard_write_failed": "无法写入剪贴板。",
     "selection_too_long": "选中的文字太长。",
@@ -32,6 +32,17 @@ _ERROR_TEXT = {
     "region_too_small": "圈选区域太小。",
     "screenshot_failed": "无法截取该区域。",
     "empty_ocr_text": "没有识别到文字。",
+    "ocr_not_configured": "OCR 尚未配置。",
+    "vision_unavailable": "本地普通 Vision OCR 在当前系统不可用。",
+    "paddle_unavailable": "本地高级 PaddleOCR 尚未安装。",
+    "paddle_ocr_not_installed": "本地高级 PaddleOCR 尚未安装。",
+    "paddle_ocr_init_failed": "本地高级 PaddleOCR 初始化失败。",
+    "paddle_ocr_failed": "本地高级 PaddleOCR 识别失败。",
+    "local_ocr_unavailable": "本地 OCR 当前不可用。",
+    "ocr_standard_not_configured": "普通 OCR.space 尚未配置。",
+    "ocr_standard_multi_page_unsupported": "API 普通 OCR 只支持单张图片，请改用本地或 API 高级 OCR。",
+    "ocr_standard_image_too_large": "图片超过 API 普通 OCR 的 1 MB 上限，请改用本地或 API 高级 OCR。",
+    "ocr_standard_image_type_unsupported": "API 普通 OCR 不支持这种图片格式，请改用本地或 API 高级 OCR。",
 }
 
 
@@ -58,6 +69,13 @@ def format_overlay(job: TranslateJob) -> OverlayContent:
 
 def format_status(message: str, source: str = "") -> OverlayContent:
     return OverlayContent(title="翻译", source=source, translation=message, footnote="")
+
+
+def paddle_first_load_message(model: str) -> str:
+    return (
+        f"正在首次加载本地 OCR 模型 {model}。"
+        "若本机尚无缓存，将自动下载，可能需要一些时间；后续识别通常会更快。"
+    )
 
 
 def should_center_overlay(*, created: bool) -> bool:
@@ -358,8 +376,10 @@ _OverlayTextView = None
 def _footnote(job: TranslateJob) -> str:
     if job.kind is JobKind.OCR and job.ocr_engine == "vision":
         return "本机"
+    if job.kind is JobKind.OCR and job.ocr_engine == "standard":
+        return "普通"
     if job.kind is JobKind.OCR and job.ocr_engine == "model":
-        return "模型"
+        return "高级"
     labels = {
         "google_web": "Google 内置",
         "bing_web": "Bing 内置",

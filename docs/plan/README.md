@@ -1,6 +1,6 @@
 # 计划状态索引
 
-> 更新时间：2026-08-20（Asia/Shanghai）
+> 更新时间：2026-08-21（Asia/Shanghai）
 
 本页逐条索引全部进行中、待进行和暂时跳过计划，但只保留最近 5 项已完成计划。它不替代 `docs/README.md` 的默认入口，也不复制计划正文。状态变化时移动原计划并同步全部引用：
 
@@ -12,6 +12,8 @@
 ## 进行中
 
 - [屏幕实时 OCR 翻译](./in-progress/2026-08-20-live-screen-ocr.md)：锁定屏幕区域后有界循环 OCR 再翻译；不做系统音频。
+- [Windows 桌面版 MVP](./in-progress/2026-08-20-windows-mvp.md)：托盘、热键、圈选、浮窗和源码安装候选已通过 macOS 离线套件，等待 Windows 11 x64 真机验收。
+- [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：Vision、可选 PP-OCRv6、OCR.space、现有高级模型串行分流；macOS PP-OCRv6 small 实图已通过，等待 Windows 真机验收。
 
 ## 待进行
 

@@ -12,6 +12,7 @@ from ai_translate.interfaces.settings import (
 def _form(**overrides: str) -> dict[str, str]:
     payload = {
         "ocr_engine": "auto",
+        "ocr_local_advanced_model_tier": "tiny",
         "ocr_min_confidence": "0.5",
         "ocr_image_mode": "auto",
         "source_lang": "auto",
@@ -25,6 +26,7 @@ def _form(**overrides: str) -> dict[str, str]:
         "ocr_base_url": "https://ocr.example/v1",
         "translate_api_key": "translate-test-key",
         "ocr_api_key": "ocr-test-key",
+        "ocr_standard_api_key": "standard-test-key",
         "translate_provider": "openai",
         "translate_region": "",
     }
@@ -50,6 +52,7 @@ def test_parse_settings_form_accepts_ocr_engine_and_hotkeys() -> None:
     assert prefs.to_env()["TRANSLATE_BASE_URL"] == "https://translate.example/v1"
     assert prefs.to_env()["TRANSLATE_API_KEY"] == "translate-test-key"
     assert prefs.to_env()["OCR_API_KEY"] == "ocr-test-key"
+    assert prefs.to_env()["OCR_STANDARD_API_KEY"] == "standard-test-key"
     assert prefs.to_env()["TRANSLATE_PROVIDER"] == "openai"
     assert prefs.hotkey_ocr == "alt+w"
     assert prefs.hotkey_live_ocr == "alt+q"
@@ -60,6 +63,25 @@ def test_parse_settings_form_accepts_deepl_provider() -> None:
     prefs = parse_settings_form(**_form(translate_provider="deepl", translate_base_url=""))
     assert prefs.translate_provider == "deepl"
     assert prefs.to_env()["TRANSLATE_PROVIDER"] == "deepl"
+
+
+def test_parse_settings_form_accepts_standard_ocr_mode() -> None:
+    prefs = parse_settings_form(**_form(ocr_engine="standard"))
+    assert prefs.ocr_engine == "standard"
+    assert prefs.to_env()["OCR_STANDARD_API_KEY"] == "standard-test-key"
+
+
+def test_parse_settings_form_accepts_local_advanced_ocr_mode() -> None:
+    prefs = parse_settings_form(
+        **_form(
+            ocr_engine="paddle",
+            ocr_local_advanced_model_tier="tiny",
+        )
+    )
+    assert prefs.ocr_engine == "paddle"
+    assert prefs.ocr_local_advanced_model_tier == "tiny"
+    assert prefs.to_env()["OCR_ENGINE"] == "paddle"
+    assert prefs.to_env()["OCR_LOCAL_ADVANCED_MODEL_TIER"] == "tiny"
 
 
 def test_parse_settings_form_blank_provider_defaults_to_google_web() -> None:
@@ -148,6 +170,11 @@ def test_prepare_settings_window_stays_visible_when_inactive() -> None:
 def test_parse_settings_form_rejects_unknown_engine() -> None:
     with pytest.raises(ValueError, match="OCR 方法"):
         parse_settings_form(**_form(ocr_engine="tesseract"))
+
+
+def test_parse_settings_form_rejects_unknown_local_advanced_model_tier() -> None:
+    with pytest.raises(ValueError, match="Paddle 档位"):
+        parse_settings_form(**_form(ocr_local_advanced_model_tier="large"))
 
 
 def test_parse_settings_form_rejects_duplicate_hotkeys() -> None:

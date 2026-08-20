@@ -54,6 +54,38 @@ def test_selected_text_empty_when_copy_does_not_change_sentinel() -> None:
     assert clipboard.value == "previous"
 
 
+def test_selected_text_can_fall_back_to_saved_clipboard_on_windows() -> None:
+    clipboard = _Clipboard("manually copied")
+    source = SelectedTextSource(
+        clipboard_read=clipboard.read,
+        clipboard_write=clipboard.write,
+        copy_selection=lambda: None,
+        wait=lambda _seconds: None,
+        can_simulate_copy=lambda: True,
+        fallback_to_saved_clipboard=True,
+    )
+    assert source.read_selected_text() == "manually copied"
+    assert clipboard.value == "manually copied"
+
+
+def test_selected_text_can_fall_back_when_copy_injection_fails() -> None:
+    clipboard = _Clipboard("manually copied")
+
+    def fail_copy() -> None:
+        raise SelectionReadError("copy_simulation_failed")
+
+    source = SelectedTextSource(
+        clipboard_read=clipboard.read,
+        clipboard_write=clipboard.write,
+        copy_selection=fail_copy,
+        wait=lambda _seconds: None,
+        can_simulate_copy=lambda: True,
+        fallback_to_saved_clipboard=True,
+    )
+    assert source.read_selected_text() == "manually copied"
+    assert clipboard.value == "manually copied"
+
+
 def test_selected_text_uses_clipboard_when_copy_cannot_be_simulated() -> None:
     clipboard = _Clipboard("already copied")
     calls = {"n": 0}

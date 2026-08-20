@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -72,7 +73,8 @@ class TranslateSettings(BaseSettings):
 
 
 OCR_IMAGE_MODES = frozenset({"tiny", "small", "base", "large", "gundam"})
-OCR_ENGINES = frozenset({"auto", "vision", "model"})
+OCR_ENGINES = frozenset({"auto", "vision", "paddle", "standard", "model"})
+PADDLE_OCR_MODEL_TIERS = frozenset({"tiny", "small", "medium"})
 TRANSLATE_PROVIDERS = frozenset(
     {
         "openai",
@@ -86,10 +88,15 @@ TRANSLATE_PROVIDERS = frozenset(
 )
 _OCR_IMAGE_MODES = OCR_IMAGE_MODES
 _OCR_ENGINES = OCR_ENGINES
+_PADDLE_OCR_MODEL_TIERS = PADDLE_OCR_MODEL_TIERS
 _TRANSLATE_PROVIDERS = TRANSLATE_PROVIDERS
 
 
 def user_env_path() -> Path:
+    if sys.platform == "win32":
+        appdata = (os.environ.get("APPDATA") or "").strip()
+        base = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+        return base / "AI Translate" / ".env"
     return (
         Path.home()
         / "Library"
@@ -151,6 +158,7 @@ def parse_model_catalog(raw: str, current: str) -> tuple[str, ...]:
 @dataclass(frozen=True)
 class AppPreferences:
     ocr_engine: str
+    ocr_local_advanced_model_tier: str
     ocr_min_confidence: float
     ocr_image_mode: str
     source_lang: str
@@ -164,6 +172,7 @@ class AppPreferences:
     ocr_base_url: str
     translate_api_key: str
     ocr_api_key: str
+    ocr_standard_api_key: str
     translate_provider: str = "google_web"
     translate_region: str = ""
     translate_model_choices: tuple[str, ...] = ()
@@ -173,6 +182,7 @@ class AppPreferences:
         mode = self.ocr_image_mode or "auto"
         return {
             "OCR_ENGINE": self.ocr_engine,
+            "OCR_LOCAL_ADVANCED_MODEL_TIER": self.ocr_local_advanced_model_tier,
             "OCR_MIN_CONFIDENCE": f"{self.ocr_min_confidence:g}",
             "OCR_IMAGE_MODE": mode,
             "TRANSLATE_SOURCE_LANG": self.source_lang,
@@ -185,6 +195,7 @@ class AppPreferences:
             "OCR_BASE_URL": self.ocr_base_url,
             "OCR_MODEL": self.ocr_model,
             "OCR_API_KEY": self.ocr_api_key,
+            "OCR_STANDARD_API_KEY": self.ocr_standard_api_key,
             "HOTKEY_SELECTION": self.hotkey_selection,
             "HOTKEY_OCR": self.hotkey_ocr,
             "HOTKEY_LIVE_OCR": self.hotkey_live_ocr,
@@ -235,7 +246,9 @@ class OcrSettings(BaseSettings):
             return value
         cleaned = value.strip().lower()
         if cleaned not in _OCR_ENGINES:
-            raise ValueError("OCR_ENGINE must be auto, vision, or model")
+            raise ValueError(
+                "OCR_ENGINE must be auto, vision, paddle, standard, or model"
+            )
         return cleaned
 
     @property
@@ -249,6 +262,84 @@ class OcrSettings(BaseSettings):
     @property
     def api_key_set(self) -> bool:
         return bool(self.api_key.get_secret_value())
+
+
+class StandardOcrSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="OCR_STANDARD_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    base_url: str = "https://api.ocr.space/parse/image"
+    api_key: SecretStr = SecretStr("")
+    timeout_seconds: float = Field(default=30.0, gt=0)
+    engine: int = Field(default=2, ge=1, le=3)
+    language: str = "auto"
+
+    @field_validator("base_url", mode="before")
+    @classmethod
+    def _normalize_base_url(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return normalize_api_base_url(value, side="普通 OCR")
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _normalize_language(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip().lower()
+        if cleaned != "auto" and (len(cleaned) != 3 or not cleaned.isalpha()):
+            raise ValueError("OCR_STANDARD_LANGUAGE must be auto or a 3-letter code")
+        return cleaned
+
+    @property
+    def ready(self) -> bool:
+        return bool(self.base_url and self.api_key_set)
+
+    @property
+    def api_key_set(self) -> bool:
+        return bool(self.api_key.get_secret_value())
+
+
+class LocalAdvancedOcrSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="OCR_LOCAL_ADVANCED_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    model_tier: str = "tiny"
+    device: str = "cpu"
+
+    @field_validator("model_tier", mode="before")
+    @classmethod
+    def _normalize_model_tier(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip().lower()
+        if cleaned not in _PADDLE_OCR_MODEL_TIERS:
+            raise ValueError(
+                "OCR_LOCAL_ADVANCED_MODEL_TIER must be tiny, small, or medium"
+            )
+        return cleaned
+
+    @field_validator("device", mode="before")
+    @classmethod
+    def _normalize_device(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip().lower()
+        if cleaned != "cpu":
+            raise ValueError("OCR_LOCAL_ADVANCED_DEVICE currently only supports cpu")
+        return cleaned
+
+    @property
+    def model(self) -> str:
+        return f"PP-OCRv6_{self.model_tier}"
 
 
 class HotkeySettings(BaseSettings):
@@ -287,11 +378,17 @@ class Settings:
         self,
         translate: TranslateSettings,
         ocr: OcrSettings,
+        standard_ocr: StandardOcrSettings | None = None,
+        local_advanced_ocr: LocalAdvancedOcrSettings | None = None,
         hotkey: HotkeySettings | None = None,
         env_file: str | None = None,
     ) -> None:
         self.translate = translate
         self.ocr = ocr
+        self.standard_ocr = standard_ocr or StandardOcrSettings(_env_file=None)
+        self.local_advanced_ocr = local_advanced_ocr or LocalAdvancedOcrSettings(
+            _env_file=None
+        )
         self.hotkey = hotkey or HotkeySettings(_env_file=None)
         self.env_file = env_file
 
@@ -306,6 +403,8 @@ class Settings:
         return cls(
             translate=TranslateSettings(_env_file=chosen),
             ocr=OcrSettings(_env_file=chosen),
+            standard_ocr=StandardOcrSettings(_env_file=chosen),
+            local_advanced_ocr=LocalAdvancedOcrSettings(_env_file=chosen),
             hotkey=HotkeySettings(_env_file=chosen),
             env_file=chosen,
         )
@@ -313,6 +412,7 @@ class Settings:
     def preferences(self) -> AppPreferences:
         return AppPreferences(
             ocr_engine=self.ocr.engine,
+            ocr_local_advanced_model_tier=self.local_advanced_ocr.model_tier,
             ocr_min_confidence=self.ocr.min_confidence,
             ocr_image_mode=self.ocr.image_mode or "auto",
             source_lang=self.translate.source_lang,
@@ -326,6 +426,7 @@ class Settings:
             ocr_base_url=self.ocr.base_url,
             translate_api_key=self.translate.api_key.get_secret_value(),
             ocr_api_key=self.ocr.api_key.get_secret_value(),
+            ocr_standard_api_key=self.standard_ocr.api_key.get_secret_value(),
             translate_provider=self.translate.provider,
             translate_region=self.translate.region,
             translate_model_choices=parse_model_catalog(
@@ -341,11 +442,24 @@ class Settings:
 
     @property
     def ocr_ready(self) -> bool:
-        return self.ocr.model_ready
+        return self.standard_ocr.ready or self.ocr.model_ready
 
-    def ocr_capability_ready(self, vision_available: bool) -> bool:
+    def ocr_capability_ready(
+        self,
+        vision_available: bool,
+        paddle_available: bool = False,
+    ) -> bool:
         if self.ocr.engine == "model":
             return self.ocr.model_ready
+        if self.ocr.engine == "standard":
+            return self.standard_ocr.ready
+        if self.ocr.engine == "paddle":
+            return paddle_available
         if self.ocr.engine == "vision":
             return vision_available
-        return vision_available or self.ocr.model_ready
+        return (
+            vision_available
+            or paddle_available
+            or self.standard_ocr.ready
+            or self.ocr.model_ready
+        )

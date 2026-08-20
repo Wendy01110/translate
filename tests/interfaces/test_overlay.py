@@ -7,6 +7,7 @@ from ai_translate.interfaces.overlay import (
     format_overlay,
     overlay_becomes_key_only_if_needed,
     overlay_text_for_copy,
+    paddle_first_load_message,
     should_center_overlay,
     should_focus_overlay,
 )
@@ -25,6 +26,14 @@ def test_overlay_keeps_full_long_text() -> None:
     )
     assert content.source == source
     assert content.translation == translation
+
+
+def test_paddle_first_load_message_sets_download_expectation() -> None:
+    message = paddle_first_load_message("PP-OCRv6_tiny")
+
+    assert "PP-OCRv6_tiny" in message
+    assert "尚无缓存" in message
+    assert "后续识别通常会更快" in message
 
 
 def test_overlay_copy_uses_selection_or_full_text() -> None:
@@ -119,6 +128,31 @@ def test_overlay_ocr_footnote_marks_local_engine() -> None:
     )
     assert content.title == "OCR"
     assert content.footnote == "本机"
+
+
+def test_overlay_ocr_footnote_marks_standard_and_advanced_tiers() -> None:
+    standard = format_overlay(
+        TranslateJob(
+            kind=JobKind.OCR,
+            status=JobStatus.SUCCESS,
+            source_text=None,
+            translated_text="普通结果",
+            ocr_text="source",
+            ocr_engine="standard",
+        )
+    )
+    advanced = format_overlay(
+        TranslateJob(
+            kind=JobKind.OCR,
+            status=JobStatus.SUCCESS,
+            source_text=None,
+            translated_text="高级结果",
+            ocr_text="source",
+            ocr_engine="model",
+        )
+    )
+    assert standard.footnote == "普通"
+    assert advanced.footnote == "高级"
 
 
 def test_overlay_failure_puts_error_in_translation() -> None:

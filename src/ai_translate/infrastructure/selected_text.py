@@ -141,6 +141,7 @@ class SelectedTextSource:
         wait: Callable[[float], None] = time.sleep,
         wait_seconds: float = COPY_WAIT_SECONDS,
         can_simulate_copy: Callable[[], bool] | None = None,
+        fallback_to_saved_clipboard: bool = False,
     ) -> None:
         self._read = clipboard_read
         self._write = clipboard_write
@@ -148,6 +149,7 @@ class SelectedTextSource:
         self._wait = wait
         self._wait_seconds = wait_seconds
         self._can_simulate_copy = can_simulate_copy or accessibility_trusted
+        self._fallback_to_saved_clipboard = fallback_to_saved_clipboard
 
     def read_selected_text(self) -> str:
         if not self._can_simulate_copy():
@@ -158,12 +160,19 @@ class SelectedTextSource:
         saved = self._read()
         try:
             self._write(EMPTY_SENTINEL)
-            self._copy()
+            try:
+                self._copy()
+            except SelectionReadError:
+                if self._fallback_to_saved_clipboard:
+                    return _bounded_text(saved)
+                raise
             self._wait(self._wait_seconds)
             current = self._read()
         finally:
             self._write(saved)
         if current == EMPTY_SENTINEL:
+            if self._fallback_to_saved_clipboard:
+                return _bounded_text(saved)
             return ""
         return _bounded_text(current)
 

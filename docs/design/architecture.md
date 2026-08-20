@@ -23,12 +23,12 @@
 ```text
 src/ai_translate/
 ├── app.py                # CLI composition root
-├── config.py             # 从环境变量加载两套模型配置
+├── config.py             # 从环境变量加载翻译和四层 OCR 配置
 ├── bootstrap/            # 构造客户端和用例
 ├── core/                 # 契约、错误、端口
 ├── features/             # 划词翻译、OCR 翻译
-├── infrastructure/       # 模型 HTTP、选区剪贴板、截屏
-└── interfaces/           # CLI、热键常驻、菜单栏、设置、输入窗口、浮窗、区域圈选和字幕条
+├── infrastructure/       # 模型 HTTP、平台选区剪贴板、截屏和单实例
+└── interfaces/           # CLI、热键常驻、托盘/菜单栏、设置、输入窗口、浮窗、区域圈选和字幕条
 ```
 
 ## 依赖方向
@@ -47,7 +47,7 @@ bootstrap -> features + infrastructure + interfaces + core
 
 ## 核心约束
 
-- 翻译客户端只接收 `TranslateSettings`；OCR 客户端只接收 `OcrSettings`。
+- 翻译客户端只接收 `TranslateSettings`；PaddleOCR 本地高级适配只接收 `LocalAdvancedOcrSettings`；OCR.space API 普通客户端只接收 `StandardOcrSettings`；API 高级客户端只接收 `OcrSettings`。四者不得互借配置。
 - `Translator` 和 `OcrEngine` 是两条端口。OCR 翻译用例可以依赖两个端口，但不得把图像直接交给翻译端口，除非产品范围先修改。
 - 公共业务状态只有 `success`、`partial`、`failure`。
 - 真实上游、截屏和剪贴板访问只能从 `infrastructure` 出发，并由组合入口注入。
@@ -58,9 +58,9 @@ bootstrap -> features + infrastructure + interfaces + core
 
 OCR 翻译由 `OcrTranslateService` 编排：先调用 `OcrEngine`，识别文本为空则失败并停止；识别成功后再调用 `Translator`。翻译失败时返回 `partial` 并保留 OCR 文本。区域实时 OCR 也由该用例的 `advance_live` 编排：指纹未变则跳过 OCR，文本未变则跳过翻译，失败不得沿用上一句成功译文。
 
-CLI 接入 `config-check`、`text`、`ocr`、`ocr-translate`、`listen` 和 `app`。`ocr` 只走 OCR 端口；划词、输入窗口、单次 `ocr-translate` 和实时 OCR 必须走同一个翻译端口。`listen` 和菜单栏 App 把热键接到选区来源、区域截屏、实时区域循环和浮窗，不在 interface 里直接打 HTTP。菜单「输入翻译…」打开输入窗口；「实时翻译」圈选区域后开始有界循环。菜单栏设置页只改写允许的环境变量并重建现有用例。macOS `.app` 用嵌入式启动器加载同一套 `app:main`，不另写翻译语义。配置文件由 `resolve_env_path()` 选出一份，启动器只提供仓库路径，不把密钥或 `.env` 路径打进包内。
+CLI 接入 `config-check`、`text`、`ocr`、`ocr-translate`、`listen` 和 `app`。`ocr` 只走 OCR 端口；划词、输入窗口、单次 `ocr-translate` 和实时 OCR 必须走同一个翻译端口。`listen` 和桌面 App 把热键接到选区来源、区域截屏、实时区域循环和浮窗，不在 interface 里直接打 HTTP。菜单或托盘的「输入翻译…」打开输入窗口；「实时翻译」圈选区域后开始有界循环。设置页只改写允许的环境变量并重建现有用例。macOS `.app` 用嵌入式启动器、Windows 源码入口用项目 `.venv` 的 `pythonw.exe` 加载同一套 `app:main`，都不另写翻译语义。配置文件由 `resolve_env_path()` 选出一份，启动器只提供仓库路径，不把密钥或 `.env` 路径打进包内。
 
-OCR 由 `RoutingOcrEngine` 分流：默认先 `VisionOcrEngine`，再 `HttpOcrEngine`。图片文件读取位于 `infrastructure/image_file.py`。interfaces 不得直接调用 `httpx` 或拼装 OCR payload。浮窗只展示原文和译文；点选后 `Command+C` 复制当前栏，未选中则复制全文。
+OCR 由 `RoutingOcrEngine`、`TieredLocalOcrEngine` 与 `TieredRemoteOcrEngine` 分流：macOS 自动模式先 `VisionOcrEngine`，Windows 跳过该层；之后尝试可选且懒加载的本地 `PaddleOcrEngine`；再对单张且在 1 MB 边界内的图片尝试 API `OcrSpaceEngine`；最后使用已配置的 API 高级 `HttpOcrEngine`。图片文件读取位于 `infrastructure/image_file.py`。interfaces 不得直接调用 PaddleOCR、`httpx` 或拼装任一 OCR payload。浮窗只展示原文和译文；获得焦点后使用平台复制快捷键复制选中文字。
 
 ## 变更与验证要求
 

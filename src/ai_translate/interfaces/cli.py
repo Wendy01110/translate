@@ -52,18 +52,19 @@ def build_parser() -> argparse.ArgumentParser:
     _add_image_args(ocr_translate)
     subparsers.add_parser(
         "listen",
-        help="Register macOS hotkeys for selection, OCR, and live OCR translation.",
+        help="Register desktop hotkeys for selection, OCR, and live OCR translation.",
     )
     subparsers.add_parser(
         "app",
-        help="Run the macOS menu bar app.",
+        help="Run the macOS menu bar or Windows tray app.",
     )
     return parser
 
 
 def format_config_status(status: ConfigStatus) -> str:
     translate_key = "set" if status.translate_api_key_set else "unset"
-    ocr_key = "set" if status.ocr_api_key_set else "unset"
+    standard_key = "set" if status.ocr_standard_api_key_set else "unset"
+    advanced_key = "set" if status.ocr_api_key_set else "unset"
     return "\n".join(
         [
             "config:",
@@ -78,13 +79,28 @@ def format_config_status(status: ConfigStatus) -> str:
             f"  target_lang: {_display(status.translate_target_lang)}",
             "ocr:",
             f"  ready: {_flag(status.ocr_ready)}",
-            f"  base_url: {_display(status.ocr_base_url)}",
-            f"  model: {_display(status.ocr_model)}",
-            f"  api_key: {ocr_key}",
             f"  engine: {_display(status.ocr_engine)}",
-            f"  vision: {_flag(status.ocr_vision_available)}",
-            f"  image_mode: {_display(status.ocr_image_mode)}",
-            f"  max_tokens: {status.ocr_max_tokens}",
+            "  local:",
+            "    standard:",
+            f"      ready: {_flag(status.ocr_vision_available)}",
+            "      provider: macos-vision",
+            "    advanced:",
+            f"      ready: {_flag(status.ocr_local_advanced_available)}",
+            f"      model: {_display(status.ocr_local_advanced_model)}",
+            "  api:",
+            "    standard:",
+            f"      ready: {_flag(status.ocr_standard_ready)}",
+            f"      base_url: {_display(status.ocr_standard_base_url)}",
+            f"      api_key: {standard_key}",
+            f"      provider_engine: {status.ocr_standard_engine}",
+            f"      max_image_bytes: {status.ocr_standard_max_image_bytes}",
+            "    advanced:",
+            f"      ready: {_flag(status.ocr_advanced_ready)}",
+            f"      base_url: {_display(status.ocr_base_url)}",
+            f"      model: {_display(status.ocr_model)}",
+            f"      api_key: {advanced_key}",
+            f"      image_mode: {_display(status.ocr_image_mode)}",
+            f"      max_tokens: {status.ocr_max_tokens}",
             "hotkey:",
             f"  selection: {_display(status.hotkey_selection)}",
             f"  ocr: {_display(status.hotkey_ocr)}",
@@ -135,7 +151,7 @@ def _add_image_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--screenshot",
         action="store_true",
-        help="Interactively capture a macOS screen region.",
+        help="Interactively capture a desktop screen region.",
     )
 
 

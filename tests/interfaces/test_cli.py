@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ai_translate.app import _needs_runtime
+from ai_translate.app import _needs_runtime, _needs_windows_ui
 from ai_translate.core.errors import ImageSourceError
 from ai_translate.core.models import ConfigStatus, JobStatus
 from ai_translate.features.ocr_translate import OcrTranslateService
@@ -27,10 +27,18 @@ def _status(**overrides: object) -> ConfigStatus:
         "ocr_max_tokens": 24000,
         "ocr_engine": "auto",
         "ocr_vision_available": False,
+        "ocr_local_advanced_available": False,
+        "ocr_local_advanced_model": "PP-OCRv6_tiny",
         "hotkey_selection": "alt+e",
         "hotkey_ocr": "alt+w",
         "hotkey_live_ocr": "alt+q",
         "env_file": "",
+        "ocr_standard_ready": False,
+        "ocr_standard_base_url": "https://api.ocr.space/parse/image",
+        "ocr_standard_api_key_set": False,
+        "ocr_standard_engine": 2,
+        "ocr_standard_max_image_bytes": 1_000_000,
+        "ocr_advanced_ready": False,
     }
     payload.update(overrides)
     return ConfigStatus(**payload)
@@ -44,6 +52,8 @@ def test_config_check_does_not_construct_model_clients() -> None:
     assert _needs_runtime(["text", "hello"]) is True
     assert _needs_runtime(["listen"]) is True
     assert _needs_runtime(["app"]) is True
+    assert _needs_windows_ui(["ocr-translate", "--screenshot"]) is True
+    assert _needs_windows_ui(["ocr", "--image", "page.png"]) is False
 
 
 def test_app_config_check_does_not_create_httpx_client(
@@ -76,6 +86,9 @@ def test_config_check_masks_secrets_and_exits_zero(capsys) -> None:
         ocr_base_url="https://ocr.example/v1",
         ocr_model="ocr-model",
         ocr_api_key_set=True,
+        ocr_standard_ready=True,
+        ocr_standard_api_key_set=True,
+        ocr_advanced_ready=True,
     )
 
     code = run(["config-check"], status)
@@ -88,6 +101,7 @@ def test_config_check_masks_secrets_and_exits_zero(capsys) -> None:
     assert "ocr-secret" not in output
     assert "https://translate.example/v1" in output
     assert "https://ocr.example/v1" in output
+    assert "https://api.ocr.space/parse/image" in output
 
 
 def test_config_check_reports_empty_unready_state(capsys) -> None:
@@ -98,6 +112,7 @@ def test_config_check_reports_empty_unready_state(capsys) -> None:
     assert "ready: false" in output
     assert "base_url: (empty)" in output
     assert "api_key: unset" in output
+    assert "max_image_bytes: 1000000" in output
 
 
 def test_format_config_status_never_contains_secret_values() -> None:
@@ -112,6 +127,10 @@ def test_format_config_status_never_contains_secret_values() -> None:
     assert "engine: auto" in rendered
     assert "image_mode: auto" in rendered
     assert "max_tokens: 24000" in rendered
+    assert "standard:" in rendered
+    assert "advanced:" in rendered
+    assert "local:" in rendered
+    assert "api:" in rendered
     assert "selection: alt+e" in rendered
     assert "ocr: alt+w" in rendered
     assert "env_file:" in rendered

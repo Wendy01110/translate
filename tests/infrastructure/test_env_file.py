@@ -15,19 +15,23 @@ def test_upsert_updates_existing_key_and_keeps_comments(tmp_path: Path) -> None:
         path,
         {
             "OCR_ENGINE": "vision",
+            "OCR_LOCAL_ADVANCED_MODEL_TIER": "tiny",
             "OCR_MIN_CONFIDENCE": "0.7",
             "TRANSLATE_MODEL": "gpt-4.1-mini",
             "TRANSLATE_BASE_URL": "https://translate.example/v1",
             "TRANSLATE_API_KEY": "translate-test-key",
+            "OCR_STANDARD_API_KEY": "standard-test-key",
         },
     )
     text = path.read_text(encoding="utf-8")
     assert "# keep" in text
     assert "OCR_ENGINE=vision" in text
+    assert "OCR_LOCAL_ADVANCED_MODEL_TIER=tiny" in text
     assert "OCR_MIN_CONFIDENCE=0.7" in text
     assert "TRANSLATE_MODEL=gpt-4.1-mini" in text
     assert "TRANSLATE_BASE_URL=https://translate.example/v1" in text
     assert "TRANSLATE_API_KEY=translate-test-key" in text
+    assert "OCR_STANDARD_API_KEY=standard-test-key" in text
 
 
 def test_upsert_rejects_authorization_header(tmp_path: Path) -> None:

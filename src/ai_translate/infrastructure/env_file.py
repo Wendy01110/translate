@@ -5,6 +5,7 @@ from pathlib import Path
 ALLOWED_ENV_KEYS = frozenset(
     {
         "OCR_ENGINE",
+        "OCR_LOCAL_ADVANCED_MODEL_TIER",
         "OCR_MIN_CONFIDENCE",
         "OCR_IMAGE_MODE",
         "TRANSLATE_SOURCE_LANG",
@@ -17,6 +18,7 @@ ALLOWED_ENV_KEYS = frozenset(
         "OCR_BASE_URL",
         "OCR_MODEL",
         "OCR_API_KEY",
+        "OCR_STANDARD_API_KEY",
         "HOTKEY_SELECTION",
         "HOTKEY_OCR",
         "HOTKEY_LIVE_OCR",
