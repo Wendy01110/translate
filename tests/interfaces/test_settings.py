@@ -1,3 +1,6 @@
+import sys
+from types import SimpleNamespace
+
 import pytest
 
 from ai_translate.interfaces.settings import (
@@ -96,6 +99,7 @@ def test_parse_settings_form_accepts_google_web_without_url() -> None:
     assert prefs.translate_provider == "google_web"
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires PyObjC")
 def test_objc_controller_classes_are_cached_and_uniquely_named() -> None:
     from ai_translate.interfaces.menubar import _menu_controller_class
     from ai_translate.interfaces.settings import _settings_controller_class
@@ -127,8 +131,19 @@ def test_settings_centers_only_when_hidden() -> None:
     assert should_center_settings(visible=True) is False
 
 
-def test_prepare_settings_window_stays_visible_when_inactive() -> None:
+def test_prepare_settings_window_stays_visible_when_inactive(monkeypatch) -> None:
     from ai_translate.interfaces.settings import _prepare_settings_window
+
+    can_join_all_spaces = 1
+    move_to_active_space = 2
+    monkeypatch.setitem(
+        sys.modules,
+        "AppKit",
+        SimpleNamespace(
+            NSFloatingWindowLevel=3,
+            NSWindowCollectionBehaviorMoveToActiveSpace=move_to_active_space,
+        ),
+    )
 
     class _Window:
         def __init__(self) -> None:
@@ -153,18 +168,13 @@ def test_prepare_settings_window_stays_visible_when_inactive() -> None:
         def setCollectionBehavior_(self, value: object) -> None:
             self.collection = value
 
-    from AppKit import (
-        NSWindowCollectionBehaviorCanJoinAllSpaces,
-        NSWindowCollectionBehaviorMoveToActiveSpace,
-    )
-
     window = _Window()
     _prepare_settings_window(window)
     assert window.hides_on_deactivate is False
     assert window.released is False
     assert window.floating is True
-    assert window.collection == NSWindowCollectionBehaviorMoveToActiveSpace
-    assert window.collection & NSWindowCollectionBehaviorCanJoinAllSpaces == 0
+    assert window.collection == move_to_active_space
+    assert window.collection & can_join_all_spaces == 0
 
 
 def test_parse_settings_form_rejects_unknown_engine() -> None:

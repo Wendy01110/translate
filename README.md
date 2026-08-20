@@ -1,6 +1,6 @@
 # AI Translate
 
-本机划词翻译和截图翻译。选中外文按热键即可看到译文；圈选屏幕可以先识别文字再翻译；也可以锁定一块区域做实时识别；还可以在输入窗口里粘贴或键入后再译。macOS 版本已经过本机试用；Windows 11 x64 已有源码候选，仍需 Windows 真机验收。
+本机划词翻译和截图翻译。选中外文按热键即可看到译文；圈选屏幕可以先识别文字再翻译；也可以锁定一块区域做实时识别；还可以在输入窗口里粘贴或键入后再译。macOS 版本已经过本机试用；Windows 11 x64 源码安装、托盘进程、设置窗口、单实例、命令行真实翻译和本地 PaddleOCR 已完成首轮真机验证，热键划词、圈选、多屏/DPI 和实时停止仍待交互验收。
 
 ## macOS 安装
 
@@ -22,7 +22,7 @@
 powershell -ExecutionPolicy Bypass -File .\scripts\install-windows.ps1
 ```
 
-脚本会创建项目 `.venv`、安装 Windows 平台依赖，并用该环境的 `pythonw.exe` 启动系统托盘 App。设置保存在 `%APPDATA%\AI Translate\.env`；若仓库已经有 `.env`，仍优先使用仓库文件。Windows 热键、圈选、多屏/DPI、托盘和安装结果尚未在 Windows 真机验收，当前不能替代正式发布包。
+脚本会创建项目 `.venv`、安装 Windows 平台依赖，并用该环境的 `pythonw.exe` 启动系统托盘 App。设置保存在 `%APPDATA%\AI Translate\.env`；若仓库已经有 `.env`，仍优先使用仓库文件。该入口已在 Windows 11 x64、Python 3.13.15 上完成源码安装、托盘进程、设置窗口和单实例首轮验证；热键、圈选、多屏/DPI 与实时停止仍待验收，当前不能替代正式发布包。
 
 ## 第一次使用
 

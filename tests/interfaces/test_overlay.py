@@ -1,3 +1,6 @@
+import sys
+from types import SimpleNamespace
+
 from ai_translate.core.models import JobKind, JobStatus, TranslateJob
 from ai_translate.interfaces.overlay import (
     _applescript_string,
@@ -195,7 +198,17 @@ def test_existing_overlay_does_not_recenter_or_refocus() -> None:
     assert should_focus_overlay(visible=True) is False
 
 
-def test_overlay_window_stays_visible_when_app_is_inactive() -> None:
+def test_overlay_window_stays_visible_when_app_is_inactive(monkeypatch) -> None:
+    monkeypatch.setitem(
+        sys.modules,
+        "AppKit",
+        SimpleNamespace(
+            NSFloatingWindowLevel=3,
+            NSWindowCollectionBehaviorCanJoinAllSpaces=1,
+            NSWindowCollectionBehaviorFullScreenAuxiliary=2,
+        ),
+    )
+
     class _Window:
         def __init__(self) -> None:
             self.hides_on_deactivate = True

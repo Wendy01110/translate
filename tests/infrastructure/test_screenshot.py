@@ -1,6 +1,8 @@
 from pathlib import Path
 import subprocess
 
+import pytest
+
 from ai_translate.core.errors import ImageSourceError
 from ai_translate.core.models import ScreenRect
 from ai_translate.infrastructure.screenshot import (
@@ -8,6 +10,11 @@ from ai_translate.infrastructure.screenshot import (
     RegionScreenshot,
     appkit_to_quartz_rect,
 )
+
+
+@pytest.fixture(autouse=True)
+def _run_macos_screenshot_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("ai_translate.infrastructure.screenshot.sys.platform", "darwin")
 
 
 def test_screenshot_reads_png_and_deletes_temp(tmp_path: Path) -> None:

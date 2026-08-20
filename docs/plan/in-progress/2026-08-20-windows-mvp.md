@@ -56,7 +56,8 @@
 
 - 已完成现状核对、Windows MVP 边界和稳定设计；现有 macOS 图标/构建 WIP 未被修改或纳入。
 - 已完成平台组合、Windows Unicode 文本剪贴板、`SendInput` 模拟复制、`RegisterHotKey`、虚拟桌面圈选、Pillow 截屏、Tk 普通浮窗/字幕条/设置/输入窗口、pystray 托盘、单实例和 `%APPDATA%` 配置路径。
-- 已增加 `scripts/install-windows.ps1` 与 `windows/launcher.pyw` 源码入口；Windows 依赖使用平台标记，macOS 当前环境未安装这些依赖。
-- 已同步本地高级 PaddleOCR、API 普通 OCR.space、API 高级 OCR、Windows 设置页的四种可用模式，以及 `tiny`、`small`、`medium` 本地 Paddle 档位选择；Windows 桌面路径会在 Paddle 首次真正初始化前显示一次等待提醒。尚未在 Windows 验证 PaddleOCR 安装、提醒窗口或真实四层调用。
-- Windows 纯逻辑、适配合同、四层 OCR 配置、CLI、架构和文档测试已纳入完整离线套件；macOS 项目 `.venv` 下当前 249 项通过。
-- 尚未执行 Windows 交互桌面、依赖安装、PowerShell 脚本、热键冲突、剪贴板/UIPI、单/多屏 DPI、托盘、真实截屏和真实模型验收，因此本计划保持进行中，不能声明 Windows 版可用。
+- 已在 Windows 11 x64 安装 Python 3.13.15 AMD64，并由 `scripts/install-windows.ps1` 创建项目 `.venv`、安装平台依赖和启动 `windows/launcher.pyw`。首次真机执行发现无 BOM UTF-8 脚本会被 Windows PowerShell 5.1 按本地代码页误读并解析失败；脚本改为带 BOM 的 UTF-8，并由安装合同测试固定。
+- 已确认托盘宿主进程使用项目 `.venv\Scripts\pythonw.exe`，第二实例以退出码 1 明确拒绝；Windows 设置窗口的翻译、OCR、语言与热键三页完成真机显示核对。Google 内置源真实文本翻译成功；未通过工具可靠操作托盘菜单或输入翻译窗口，不据此声明其交互验收完成。
+- 已安装 PaddleOCR 3.7.0 与 PaddlePaddle 3.3.0；Windows CPU 默认 oneDNN 路径真实预测失败后，适配器仅在 Windows 传入 `enable_mkldnn=False`。PP-OCRv6 tiny 本地图片识别和 OCR 后 Google 翻译均已成功，桌面首次加载提醒仍未验证。
+- Windows 配置、安装合同、平台 UI/基础设施、CLI、架构和文档定向测试 70 项通过；当前完整 Windows 离线套件 244 项通过、2 项仅因 PyObjC/macOS 专属路径跳过，`pip check` 与 Paddle CPU 自检通过。
+- 尚未完成 Windows 全局热键、剪贴板恢复/UIPI、圈选与真实区域截屏、单/多屏 DPI、托盘菜单、输入窗口结果展示、实时停止和 Paddle 桌面首次提醒。区域截图复验开始前桌面进入锁屏，按安全边界停止 UI 操作；本计划继续保持进行中，不能声明 Windows 桌面版整体可用。

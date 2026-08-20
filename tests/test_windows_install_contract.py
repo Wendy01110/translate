@@ -1,3 +1,4 @@
+import codecs
 from pathlib import Path
 import tomllib
 
@@ -20,7 +21,9 @@ def test_windows_source_install_uses_project_venv_and_launcher() -> None:
     launcher = PROJECT_ROOT / "windows" / "launcher.pyw"
     assert install.is_file()
     assert launcher.is_file()
-    script = install.read_text(encoding="utf-8")
+    raw_script = install.read_bytes()
+    assert raw_script.startswith(codecs.BOM_UTF8)
+    script = raw_script.decode("utf-8-sig")
     assert ".venv\\Scripts\\python.exe" in script
     assert ".venv\\Scripts\\pythonw.exe" in script
     assert "pip install -e" in script

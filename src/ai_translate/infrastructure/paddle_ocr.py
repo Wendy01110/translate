@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from io import BytesIO
 from threading import Lock
@@ -89,14 +90,17 @@ class PaddleOcrEngine:
         if self._pipeline is None:
             self._notify_first_load()
             tier = self._settings.model_tier
-            self._pipeline = self._factory(
-                text_detection_model_name=f"PP-OCRv6_{tier}_det",
-                text_recognition_model_name=f"PP-OCRv6_{tier}_rec",
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                use_textline_orientation=False,
-                device=self._settings.device,
-            )
+            factory_options: dict[str, Any] = {
+                "text_detection_model_name": f"PP-OCRv6_{tier}_det",
+                "text_recognition_model_name": f"PP-OCRv6_{tier}_rec",
+                "use_doc_orientation_classify": False,
+                "use_doc_unwarping": False,
+                "use_textline_orientation": False,
+                "device": self._settings.device,
+            }
+            if sys.platform == "win32":
+                factory_options["enable_mkldnn"] = False
+            self._pipeline = self._factory(**factory_options)
         return self._pipeline
 
     def _notify_first_load(self) -> None:

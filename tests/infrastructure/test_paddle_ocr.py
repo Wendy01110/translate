@@ -23,7 +23,8 @@ class _Pipeline:
         return self.predictions
 
 
-def test_paddle_ocr_is_lazy_and_extracts_text_and_confidence() -> None:
+def test_paddle_ocr_is_lazy_and_extracts_text_and_confidence(monkeypatch) -> None:
+    monkeypatch.setattr("ai_translate.infrastructure.paddle_ocr.sys.platform", "darwin")
     created: list[dict[str, Any]] = []
     pipeline = _Pipeline([_Prediction(["第一行", "Second"], [0.9, 0.7])])
 
@@ -56,6 +57,27 @@ def test_paddle_ocr_is_lazy_and_extracts_text_and_confidence() -> None:
             "device": "cpu",
         }
     ]
+
+
+def test_paddle_ocr_disables_mkldnn_on_windows(monkeypatch) -> None:
+    monkeypatch.setattr("ai_translate.infrastructure.paddle_ocr.sys.platform", "win32")
+    created: list[dict[str, Any]] = []
+    pipeline = _Pipeline([_Prediction(["Windows"], [0.9])])
+
+    def factory(**kwargs: Any) -> _Pipeline:
+        created.append(kwargs)
+        return pipeline
+
+    engine = PaddleOcrEngine(
+        LocalAdvancedOcrSettings(_env_file=None),
+        factory=factory,
+        decoder=lambda data: data,
+    )
+
+    result = engine.recognize(b"png", "image/png")
+
+    assert result.status is JobStatus.SUCCESS
+    assert created[0]["enable_mkldnn"] is False
 
 
 def test_paddle_ocr_reuses_pipeline_across_pages_and_calls() -> None:

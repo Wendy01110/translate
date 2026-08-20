@@ -27,7 +27,7 @@
 - API 普通只支持单张且不超过 1 MB；多页、空图、非支持格式或超限时不调用它。强制 `standard` 时返回明确失败，`auto` 时直接继续 API 高级。
 - macOS 设置页显示五种方法；Windows 不显示 `vision`，显示 `auto`、`paddle`、`standard`、`model`。两端设置页都提供 PP-OCRv6 `tiny`、`small`、`medium` 档位；写入 `OCR_ENGINE` 与 `OCR_LOCAL_ADVANCED_MODEL_TIER` 后立即重建分流引擎。
 - `OCR_MIN_CONFIDENCE` 同时约束两个本地层；API 普通没有本项目可依赖的统一置信度。任一层返回了非空文字不等于文字一定准确，用户可强制选择本地高级或 API 高级。
-- PaddleOCR 在主进程内懒加载，不经过远程接口；可选依赖未安装时 `config-check` 显示不可用。桌面监听路径在每个新 Paddle 引擎实例第一次真正初始化前显示一次提醒；并发首次调用、同一实例初始化失败后的重试均不得重复提醒，提醒显示失败也不得中断 OCR。首次实际初始化可能下载所选 PP-OCRv6 模型；普通图片 CLI 不弹桌面提醒，安装与真实初始化均不属于默认离线测试。
+- PaddleOCR 在主进程内懒加载，不经过远程接口；可选依赖未安装时 `config-check` 显示不可用。桌面监听路径在每个新 Paddle 引擎实例第一次真正初始化前显示一次提醒；并发首次调用、同一实例初始化失败后的重试均不得重复提醒，提醒显示失败也不得中断 OCR。首次实际初始化可能下载所选 PP-OCRv6 模型；普通图片 CLI 不弹桌面提醒，安装与真实初始化均不属于默认离线测试。Windows CPU 使用 `enable_mkldnn=False` 和普通 Paddle 后端，避开 PaddlePaddle 3.3.0 oneDNN 新执行器的属性转换失败；其它平台不覆盖上游默认。
 - 用户取消截屏时任何 OCR 层都不调用；原始图片、模型异常详情和未脱敏上游响应不得进入普通日志。
 
 ## 主流程
@@ -43,5 +43,5 @@
 
 ## 变更与验证要求
 
-- 修改分流条件时，同步本文、配置说明、`config-check`、`tests/infrastructure/test_ocr_routing.py`、PaddleOCR 适配测试和 OCR.space 客户端测试。
+- 修改分流条件或 Paddle 平台参数时，同步本文、配置说明、`config-check`、`tests/infrastructure/test_ocr_routing.py`、PaddleOCR 适配测试和 OCR.space 客户端测试。
 - 默认测试通过 Fake 端口和假 Paddle 结果验证顺序、解析、首次加载提醒和并发一次性，不得调用真实 Vision 像素识别、下载 PP-OCRv6 模型、上传 OCR.space 或调用 API 高级模型。

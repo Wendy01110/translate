@@ -209,6 +209,7 @@ def test_resolve_env_path_prefers_project_file_over_user_file(
     repo.mkdir()
     user.write_text("OCR_MODEL=user-model\n", encoding="utf-8")
     project.write_text("OCR_MODEL=project-model\n", encoding="utf-8")
+    monkeypatch.setattr("ai_translate.config.sys.platform", "darwin")
     monkeypatch.delenv("AI_TRANSLATE_ENV_FILE", raising=False)
     monkeypatch.delenv("AI_TRANSLATE_HOST_NAME", raising=False)
     monkeypatch.setenv("AI_TRANSLATE_PROJECT_ROOT", str(repo))
@@ -227,6 +228,7 @@ def test_resolve_env_path_uses_user_file_when_project_missing(
     user.parent.mkdir(parents=True)
     repo.mkdir()
     user.write_text("OCR_MODEL=user-model\n", encoding="utf-8")
+    monkeypatch.setattr("ai_translate.config.sys.platform", "darwin")
     monkeypatch.delenv("AI_TRANSLATE_ENV_FILE", raising=False)
     monkeypatch.setenv("AI_TRANSLATE_PROJECT_ROOT", str(repo))
     monkeypatch.setenv("HOME", str(home))
@@ -241,6 +243,7 @@ def test_resolve_env_path_app_defaults_to_user_file(
     home = tmp_path / "home"
     repo = tmp_path / "repo"
     repo.mkdir()
+    monkeypatch.setattr("ai_translate.config.sys.platform", "darwin")
     monkeypatch.delenv("AI_TRANSLATE_ENV_FILE", raising=False)
     monkeypatch.setenv("AI_TRANSLATE_PROJECT_ROOT", str(repo))
     monkeypatch.setenv("AI_TRANSLATE_HOST_NAME", "AI Translate")
@@ -272,6 +275,21 @@ def test_windows_user_env_path_uses_appdata(
     monkeypatch.setattr("ai_translate.config.sys.platform", "win32")
     monkeypatch.setenv("APPDATA", str(appdata))
     assert user_env_path() == appdata / "AI Translate" / ".env"
+
+
+def test_resolve_env_path_windows_app_defaults_to_appdata(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    appdata = tmp_path / "Roaming"
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr("ai_translate.config.sys.platform", "win32")
+    monkeypatch.delenv("AI_TRANSLATE_ENV_FILE", raising=False)
+    monkeypatch.setenv("AI_TRANSLATE_PROJECT_ROOT", str(repo))
+    monkeypatch.setenv("AI_TRANSLATE_HOST_NAME", "AI Translate")
+    monkeypatch.setenv("APPDATA", str(appdata))
+    assert resolve_env_path() == appdata / "AI Translate" / ".env"
 
 
 def test_load_uses_ai_translate_env_file_override(

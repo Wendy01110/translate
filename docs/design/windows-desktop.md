@@ -51,12 +51,12 @@
 ## 配置、OCR 与安装
 
 - Windows 用户配置目录是 `%APPDATA%\AI Translate\.env`。项目 `.env` 仍高于用户目录；启动器只设置项目根目录和主机名，不把密钥打进启动器。
-- Windows 暂无本地普通 OCR。`OCR_ENGINE=auto` 先尝试已安装的本地高级 PaddleOCR，再进入 API 普通 OCR.space 和 API 高级模型；`paddle`、`standard` 和 `model` 可分别强制对应单层。`OCR_ENGINE=vision` 保留为 macOS 配置，在 Windows 不得伪装就绪。
-- `scripts/install-windows.ps1` 只接受 Python 3.12+，创建或复用项目 `.venv`、执行 editable 安装，并用项目 `.venv` 的 `pythonw.exe` 启动 `windows/launcher.pyw`。
+- Windows 暂无本地普通 OCR。`OCR_ENGINE=auto` 先尝试已安装的本地高级 PaddleOCR，再进入 API 普通 OCR.space 和 API 高级模型；`paddle`、`standard` 和 `model` 可分别强制对应单层。`OCR_ENGINE=vision` 保留为 macOS 配置，在 Windows 不得伪装就绪。PaddleOCR 3.7.0 / PaddlePaddle 3.3.0 的 Windows CPU 路径必须传入 `enable_mkldnn=False`，避开 oneDNN 新执行器不支持模型属性的运行时错误；macOS 保持上游默认。
+- `scripts/install-windows.ps1` 只接受 Python 3.12+，创建或复用项目 `.venv`、执行 editable 安装，并用项目 `.venv` 的 `pythonw.exe` 启动 `windows/launcher.pyw`。脚本包含中文消息时必须保存为带 BOM 的 UTF-8，使 Windows PowerShell 5.1 不会按本地代码页破坏字符串和引号边界。
 - 源码安装、本地离线测试和 Windows 真机验收是不同证据；未经单独授权不生成发布包、不签名、不调用真实模型。
 
 ## 变更与验证要求
 
-- 修改 Windows 平台依赖、配置目录或入口时，同步 `pyproject.toml`、`.env.example`、根 README 和配置测试。
+- 修改 Windows 平台依赖、配置目录或入口时，同步 `pyproject.toml`、`.env.example`、根 README 和配置测试；安装脚本测试必须守住 UTF-8 BOM 与项目 `.venv` 入口。
 - 修改热键支持范围、圈选坐标或字幕条位置时，同步本文件和 Windows 纯函数测试。
 - 默认离线测试使用假剪贴板、假矩形、假截屏和 Fake 端口。Windows 真机至少验证托盘、热键冲突、手动复制降级、单/多屏 DPI、圈选取消、实时停止和设置重启。

@@ -12,8 +12,8 @@
 ## 进行中
 
 - [屏幕实时 OCR 翻译](./in-progress/2026-08-20-live-screen-ocr.md)：锁定屏幕区域后有界循环 OCR 再翻译；不做系统音频。
-- [Windows 桌面版 MVP](./in-progress/2026-08-20-windows-mvp.md)：托盘、热键、圈选、浮窗和源码安装候选已通过 macOS 离线套件，等待 Windows 11 x64 真机验收。
-- [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：Vision、可选 PP-OCRv6、OCR.space、现有高级模型串行分流；macOS PP-OCRv6 small 实图已通过，等待 Windows 真机验收。
+- [Windows 桌面版 MVP](./in-progress/2026-08-20-windows-mvp.md)：Windows 11 x64 源码安装、托盘进程、设置、单实例和 CLI 核心链路已完成首轮真机验证；等待热键、圈选、多屏/DPI 与实时停止验收。
+- [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：macOS PP-OCRv6 small 与 Windows PP-OCRv6 tiny 本地实图已通过；等待 Windows 桌面提醒、截屏和两层 API 实测。
 
 ## 待进行
 

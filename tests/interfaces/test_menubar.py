@@ -1,4 +1,10 @@
+import sys
 from types import SimpleNamespace
+
+import pytest
+
+if sys.platform != "darwin":
+    pytest.skip("macOS menu bar tests require fcntl", allow_module_level=True)
 
 from ai_translate.interfaces import menubar
 from ai_translate.interfaces.menubar import (
