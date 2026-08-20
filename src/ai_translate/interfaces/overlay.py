@@ -29,6 +29,9 @@ _ERROR_TEXT = {
     "http_429": "翻译请求太频繁，请稍后再试。",
     "translate_not_configured": "翻译模型未配置。",
     "screenshot_cancelled": "已取消圈选。",
+    "region_too_small": "圈选区域太小。",
+    "screenshot_failed": "无法截取该区域。",
+    "empty_ocr_text": "没有识别到文字。",
 }
 
 

@@ -16,6 +16,28 @@ class JobStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class ScreenRect:
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def canonical(self) -> ScreenRect:
+        x, y, width, height = self.x, self.y, self.width, self.height
+        if width < 0:
+            x += width
+            width = -width
+        if height < 0:
+            y += height
+            height = -height
+        return ScreenRect(x=x, y=y, width=width, height=height)
+
+    def is_usable(self, min_size: float = 16.0) -> bool:
+        rect = self.canonical()
+        return rect.width >= min_size and rect.height >= min_size
+
+
+@dataclass(frozen=True)
 class TranslationRequest:
     text: str
     source_lang: str
@@ -64,6 +86,7 @@ class ConfigStatus:
     ocr_vision_available: bool
     hotkey_selection: str
     hotkey_ocr: str
+    hotkey_live_ocr: str = "alt+q"
     env_file: str = ""
 
 

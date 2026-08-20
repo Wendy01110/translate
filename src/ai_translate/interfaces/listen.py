@@ -3,14 +3,23 @@ from __future__ import annotations
 import os
 import sys
 import threading
+import time
 from collections.abc import Callable
 
 from ai_translate.core.errors import ImageSourceError, SelectionReadError
 from ai_translate.core.hotkeys import HotkeyMatcher, parse_hotkey
-from ai_translate.core.models import JobKind, JobStatus, TranslateJob
+from ai_translate.core.models import JobKind, JobStatus, ScreenRect, TranslateJob
 from ai_translate.core.ports import ResultPresenter
-from ai_translate.features.ocr_translate import OcrTranslateService
+from ai_translate.features.ocr_translate import (
+    LIVE_SHOW,
+    LIVE_STOPPED,
+    LiveOcrMemory,
+    OcrTranslateService,
+    image_signature as default_image_signature,
+)
 from ai_translate.features.selection import SelectionTranslateService
+
+LIVE_OCR_INTERVAL_SECONDS = 0.8
 
 
 class DesktopListener:
@@ -30,6 +39,12 @@ class DesktopListener:
         event_loop: Callable[[], None] | None = None,
         accessibility_ready: Callable[[], bool] | None = None,
         permission_prompt: Callable[[], None] | None = None,
+        live_hotkey: str = "alt+q",
+        pick_region: Callable[[], ScreenRect | None] | None = None,
+        capture_rect: Callable[[ScreenRect], tuple[bytes, str]] | None = None,
+        live_presenter: ResultPresenter | None = None,
+        live_interval_seconds: float = LIVE_OCR_INTERVAL_SECONDS,
+        hash_image: Callable[[bytes], str] | None = None,
     ) -> None:
         self._selection = selection
         self._ocr_translate = ocr_translate
@@ -38,14 +53,29 @@ class DesktopListener:
         self._presenter = presenter
         self._selection_hotkey = selection_hotkey
         self._ocr_hotkey = ocr_hotkey
+        self._live_hotkey = live_hotkey
         self._source_lang = source_lang
         self._target_lang = target_lang
         self._hotkey_factory = hotkey_factory
         self._event_loop = event_loop
         self._accessibility_ready = accessibility_ready
         self._permission_prompt = permission_prompt
+        self._pick_region = pick_region
+        self._capture_rect = capture_rect
+        self._live_presenter = live_presenter or presenter
+        self._live_interval_seconds = live_interval_seconds
+        self._hash_image = hash_image or default_image_signature
         self._busy = threading.Lock()
         self._hotkeys: object | None = None
+        self._live_stop = threading.Event()
+        self._live_stop.set()
+        self._live_starting = False
+        self._live_running = False
+        self._live_rect: ScreenRect | None = None
+        self._live_memory = LiveOcrMemory()
+        self._live_tick_lock = threading.Lock()
+        self._live_thread: threading.Thread | None = None
+        self._live_generation = 0
 
     @property
     def selection_hotkey(self) -> str:
@@ -54,6 +84,14 @@ class DesktopListener:
     @property
     def ocr_hotkey(self) -> str:
         return self._ocr_hotkey
+
+    @property
+    def live_hotkey(self) -> str:
+        return self._live_hotkey
+
+    @property
+    def live_running(self) -> bool:
+        return self._live_running
 
     @property
     def accessibility_ready(self) -> bool:
@@ -65,7 +103,175 @@ class DesktopListener:
         self._run_exclusive(self._selection_job)
 
     def handle_ocr(self) -> None:
+        if self._live_starting or self._live_running:
+            return
         self._run_exclusive(self._ocr_job)
+
+    def handle_live_ocr(self) -> None:
+        if self._live_starting or self._live_running:
+            self.stop_live()
+            return
+        if self._pick_region is None or self._capture_rect is None:
+            return
+        if bool(getattr(self._pick_region, "needs_main_thread", False)):
+            try:
+                from Foundation import NSThread
+                from PyObjCTools.AppHelper import callAfter
+            except Exception:
+                pass
+            else:
+                if not NSThread.isMainThread():
+                    self._live_starting = True
+                    callAfter(self._start_live_pending)
+                    return
+        self._live_starting = True
+        self._start_live_pending()
+
+    def _start_live_pending(self) -> None:
+        if not self._live_starting:
+            return
+        picker = self._pick_region
+        if picker is None:
+            self._live_starting = False
+            return
+        start = getattr(picker, "start", None)
+        if callable(start):
+            try:
+                start(self._complete_live_pick)
+            except Exception:
+                self._live_starting = False
+                raise
+            return
+        try:
+            rect = picker()
+        except Exception:
+            self._live_starting = False
+            raise
+        self._complete_live_pick(rect)
+
+    def stop_live(self) -> None:
+        was_starting = self._live_starting
+        self._live_generation += 1
+        self._live_stop.set()
+        self._live_starting = False
+        self._live_running = False
+        self._live_rect = None
+        self._live_memory = LiveOcrMemory()
+        hide = getattr(self._live_presenter, "hide", None)
+        if callable(hide):
+            hide()
+        set_anchor = getattr(self._live_presenter, "set_anchor", None)
+        if callable(set_anchor):
+            set_anchor(None)
+        if was_starting:
+            cancel = getattr(self._pick_region, "cancel", None)
+            if callable(cancel):
+                cancel()
+
+    def live_tick(self, generation: int | None = None) -> str | None:
+        expected_generation = (
+            self._live_generation if generation is None else generation
+        )
+        if not self._live_tick_lock.acquire(blocking=False):
+            return None
+        try:
+            return self._live_tick_body(expected_generation)
+        finally:
+            self._live_tick_lock.release()
+
+    def _complete_live_pick(self, rect: ScreenRect | None) -> None:
+        if not self._live_starting:
+            return
+        self._live_starting = False
+        capture = self._capture_rect
+        if capture is None:
+            return
+        if rect is None or not rect.is_usable():
+            return
+        self._live_rect = rect.canonical()
+        self._live_memory = LiveOcrMemory()
+        self._live_generation += 1
+        generation = self._live_generation
+        self._live_stop.clear()
+        self._live_running = True
+        set_anchor = getattr(self._live_presenter, "set_anchor", None)
+        if callable(set_anchor):
+            set_anchor(self._live_rect)
+        self._live_presenter.show_status("识别中…")
+        thread = threading.Thread(
+            target=self._live_loop,
+            args=(generation,),
+            daemon=True,
+        )
+        thread.start()
+        self._live_thread = thread
+
+    def _live_loop(self, generation: int) -> None:
+        try:
+            while not self._live_stop.is_set() and self._live_generation == generation:
+                tick_started = time.monotonic()
+                self.live_tick(generation)
+                if self._live_generation != generation:
+                    break
+                elapsed = max(0.0, time.monotonic() - tick_started)
+                wait_seconds = max(0.0, self._live_interval_seconds - elapsed)
+                if self._live_stop.wait(wait_seconds):
+                    break
+        finally:
+            if self._live_generation == generation:
+                self._live_running = False
+
+    def _live_tick_body(self, generation: int) -> str | None:
+        if not self._live_is_current(generation):
+            return LIVE_STOPPED
+        rect = self._live_rect
+        capture = self._capture_rect
+        if rect is None or capture is None:
+            return None
+        try:
+            image_bytes, mime_type = capture(rect)
+        except ImageSourceError as exc:
+            if not self._live_is_current(generation):
+                return LIVE_STOPPED
+            if exc.code == "screenshot_cancelled":
+                return None
+            self._live_presenter.show(
+                TranslateJob(
+                    kind=JobKind.OCR,
+                    status=JobStatus.FAILURE,
+                    source_text=None,
+                    translated_text=None,
+                    error=exc.code,
+                )
+            )
+            return exc.code
+        if not self._live_is_current(generation):
+            return LIVE_STOPPED
+        frame_hash = self._hash_image(image_bytes)
+        if not self._live_is_current(generation):
+            return LIVE_STOPPED
+        result = self._ocr_translate.advance_live(
+            image_bytes,
+            mime_type,
+            self._source_lang,
+            self._target_lang,
+            frame_hash=frame_hash,
+            memory=self._live_memory,
+            should_continue=lambda: self._live_is_current(generation),
+        )
+        if not self._live_is_current(generation):
+            return LIVE_STOPPED
+        self._live_memory = result.memory
+        if result.action == LIVE_SHOW and result.job is not None:
+            self._live_presenter.show(result.job)
+        return result.action
+
+    def _live_is_current(self, generation: int) -> bool:
+        return (
+            self._live_generation == generation
+            and self._live_running
+            and not self._live_stop.is_set()
+        )
 
     def handle_typed_text(self, text: str) -> TranslateJob:
         if not self._busy.acquire(blocking=False):
@@ -92,6 +298,7 @@ class DesktopListener:
         mapping = {
             self._selection_hotkey: self.handle_selection,
             self._ocr_hotkey: self.handle_ocr,
+            self._live_hotkey: self.handle_live_ocr,
         }
         factory = self._hotkey_factory or _default_hotkey_factory
         listener = factory(mapping)
@@ -115,7 +322,7 @@ class DesktopListener:
             if self._permission_prompt is not None:
                 self._permission_prompt()
         print(
-            f"listening: selection={self._selection_hotkey} ocr={self._ocr_hotkey}",
+            f"listening: selection={self._selection_hotkey} ocr={self._ocr_hotkey} live={self._live_hotkey}",
             file=sys.stderr,
         )
         loop = self._event_loop or _default_event_loop
@@ -124,6 +331,7 @@ class DesktopListener:
         except KeyboardInterrupt:
             return 0
         finally:
+            self.stop_live()
             stop = getattr(self._hotkeys, "stop", None)
             if callable(stop):
                 stop()
@@ -150,17 +358,23 @@ class DesktopListener:
         target_lang: str,
         selection_hotkey: str,
         ocr_hotkey: str,
+        live_hotkey: str | None = None,
     ) -> None:
+        if self._live_running:
+            self.stop_live()
         self._selection = selection
         self._ocr_translate = ocr_translate
         self._source_lang = source_lang
         self._target_lang = target_lang
+        next_live = self._live_hotkey if live_hotkey is None else live_hotkey
         hotkeys_changed = (
             selection_hotkey != self._selection_hotkey
             or ocr_hotkey != self._ocr_hotkey
+            or next_live != self._live_hotkey
         )
         self._selection_hotkey = selection_hotkey
         self._ocr_hotkey = ocr_hotkey
+        self._live_hotkey = next_live
         if not hotkeys_changed or self._hotkeys is None:
             return
         stop = getattr(self._hotkeys, "stop", None)
@@ -171,6 +385,7 @@ class DesktopListener:
             {
                 self._selection_hotkey: self.handle_selection,
                 self._ocr_hotkey: self.handle_ocr,
+                self._live_hotkey: self.handle_live_ocr,
             }
         )
         start = getattr(listener, "start", None)

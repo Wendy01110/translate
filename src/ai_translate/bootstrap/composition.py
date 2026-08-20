@@ -43,6 +43,7 @@ def config_status(settings: Settings) -> ConfigStatus:
         ocr_vision_available=vision,
         hotkey_selection=settings.hotkey.selection,
         hotkey_ocr=settings.hotkey.ocr,
+        hotkey_live_ocr=settings.hotkey.live_ocr,
         env_file=str(settings.env_file) if settings.env_file else "",
     )
 

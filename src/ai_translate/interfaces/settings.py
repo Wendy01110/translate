@@ -105,8 +105,11 @@ def provider_form(provider: str) -> ProviderForm:
     return ProviderForm(True, True, False, True, "翻译来源不支持。")
 
 
+SETTINGS_ALWAYS_ROWS = 11
+
+
 def settings_window_height(*, extra_rows: int) -> float:
-    return 46.0 + 32.0 + 40.0 + extra_rows * 40.0 + 10 * 40.0 + 108.0
+    return 46.0 + 32.0 + 40.0 + extra_rows * 40.0 + SETTINGS_ALWAYS_ROWS * 40.0 + 108.0
 
 
 def parse_settings_form(
@@ -118,6 +121,7 @@ def parse_settings_form(
     target_lang: str,
     hotkey_selection: str,
     hotkey_ocr: str,
+    hotkey_live_ocr: str,
     translate_model: str,
     ocr_model: str,
     translate_base_url: str,
@@ -157,8 +161,10 @@ def parse_settings_form(
         raise ValueError("Microsoft 需要填写区域，例如 eastus")
     selection = format_hotkey_spec(parse_hotkey(hotkey_selection.strip().lower()))
     ocr_hotkey = format_hotkey_spec(parse_hotkey(hotkey_ocr.strip().lower()))
-    if parse_hotkey(selection) == parse_hotkey(ocr_hotkey):
-        raise ValueError("划词和 OCR 热键不能相同")
+    live_hotkey = format_hotkey_spec(parse_hotkey(hotkey_live_ocr.strip().lower()))
+    parsed = {parse_hotkey(selection), parse_hotkey(ocr_hotkey), parse_hotkey(live_hotkey)}
+    if len(parsed) != 3:
+        raise ValueError("划词、OCR 和实时翻译热键不能相同")
     return AppPreferences(
         ocr_engine=engine,
         ocr_min_confidence=confidence,
@@ -167,6 +173,7 @@ def parse_settings_form(
         target_lang=target,
         hotkey_selection=selection,
         hotkey_ocr=ocr_hotkey,
+        hotkey_live_ocr=live_hotkey,
         translate_model=translate,
         ocr_model=ocr,
         translate_base_url=translate_url,
@@ -187,6 +194,7 @@ def fallback_preferences() -> AppPreferences:
         target_lang="zh",
         hotkey_selection="alt+e",
         hotkey_ocr="alt+w",
+        hotkey_live_ocr="alt+q",
         translate_model="",
         ocr_model="Unlimited-OCR",
         translate_base_url="",
@@ -240,6 +248,7 @@ class _SettingsWindow:
         self._monitor_handler = None
         self._hotkey_selection_spec = "alt+e"
         self._hotkey_ocr_spec = "alt+w"
+        self._hotkey_live_ocr_spec = "alt+q"
         self._width = 480.0
         height = settings_window_height(extra_rows=4)
         window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
@@ -339,6 +348,15 @@ class _SettingsWindow:
             "recordOcrHotkey:",
             controller,
         )
+        y -= 40
+        self._hotkey_live, self._live_hotkey_label = self._hotkey_button(
+            content,
+            "实时热键",
+            16,
+            y,
+            "recordLiveHotkey:",
+            controller,
+        )
         self._status = NSTextField.alloc().initWithFrame_(NSMakeRect(16, 56, 448, 36))
         self._status.setBezeled_(False)
         self._status.setDrawsBackground_(False)
@@ -414,6 +432,7 @@ class _SettingsWindow:
                 target_lang=_selected_value(self._target_lang, TARGET_LANG_OPTIONS),
                 hotkey_selection=self._hotkey_selection_spec,
                 hotkey_ocr=self._hotkey_ocr_spec,
+                hotkey_live_ocr=self._hotkey_live_ocr_spec,
                 translate_model=self._translate_model.stringValue(),
                 ocr_model=self._ocr_model.stringValue(),
                 translate_base_url=self._translate_base_url.stringValue(),
@@ -472,6 +491,7 @@ class _SettingsWindow:
         _select_value(self._target_lang, TARGET_LANG_OPTIONS, prefs.target_lang)
         self._hotkey_selection_spec = prefs.hotkey_selection
         self._hotkey_ocr_spec = prefs.hotkey_ocr
+        self._hotkey_live_ocr_spec = prefs.hotkey_live_ocr
         self._sync_hotkey_buttons()
         self.apply_provider_layout()
 
@@ -512,6 +532,7 @@ class _SettingsWindow:
             (self._target_label, self._target_lang),
             (self._selection_label, self._hotkey_selection),
             (self._ocr_hotkey_label, self._hotkey_ocr),
+            (self._live_hotkey_label, self._hotkey_live),
         )
         for label, control in always:
             self._place(label, control, y)
@@ -584,6 +605,12 @@ class _SettingsWindow:
                 recording=self._recording == "ocr",
             )
         )
+        self._hotkey_live.setTitle_(
+            hotkey_button_title(
+                self._hotkey_live_ocr_spec,
+                recording=self._recording == "live",
+            )
+        )
 
     def _install_hotkey_monitor(self) -> None:
         from AppKit import NSEvent, NSEventMaskKeyDown
@@ -615,18 +642,25 @@ class _SettingsWindow:
         return None
 
     def _apply_recorded_hotkey(self, spec: str) -> None:
-        other = (
-            self._hotkey_ocr_spec
-            if self._recording == "selection"
-            else self._hotkey_selection_spec
-        )
-        if parse_hotkey(spec) == parse_hotkey(other):
-            self._status.setStringValue_("划词和 OCR 热键不能相同")
+        current = {
+            "selection": self._hotkey_selection_spec,
+            "ocr": self._hotkey_ocr_spec,
+            "live": self._hotkey_live_ocr_spec,
+        }
+        others = [
+            parse_hotkey(value)
+            for key, value in current.items()
+            if key != self._recording
+        ]
+        if parse_hotkey(spec) in others:
+            self._status.setStringValue_("划词、OCR 和实时翻译热键不能相同")
             return
         if self._recording == "selection":
             self._hotkey_selection_spec = spec
         elif self._recording == "ocr":
             self._hotkey_ocr_spec = spec
+        elif self._recording == "live":
+            self._hotkey_live_ocr_spec = spec
         self._stop_hotkey_monitor()
         self._recording = None
         self._sync_hotkey_buttons()
@@ -714,6 +748,11 @@ def _settings_controller_class() -> type:
             owner = getattr(self, "owner", None)
             if owner is not None:
                 owner.begin_hotkey_record("ocr")
+
+        def recordLiveHotkey_(self, _sender) -> None:
+            owner = getattr(self, "owner", None)
+            if owner is not None:
+                owner.begin_hotkey_record("live")
 
         def providerChanged_(self, _sender) -> None:
             owner = getattr(self, "owner", None)

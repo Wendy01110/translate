@@ -59,10 +59,11 @@ OCR：
 
 - `HOTKEY_SELECTION`：划词翻译热键，默认 `alt+e`。
 - `HOTKEY_OCR`：区域 OCR 翻译热键，默认 `alt+w`。
+- `HOTKEY_LIVE_OCR`：屏幕实时 OCR 热键，默认 `alt+q`。再次按下会停止正在运行的实时循环。三组热键在配置加载时统一规范化，并拒绝语义相同的组合（例如 `option+e` 与 `alt+e`）。
 
 OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `listen` 和菜单栏 App 注册，`config-check` 只回读字符串。
 
-菜单栏「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`。两侧地址和密钥必须分开填写，不得互拷。不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。设置页可切换翻译来源和模型；热键点一下再按下组合键录制。
+菜单栏「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`、`HOTKEY_LIVE_OCR`。两侧地址和密钥必须分开填写，不得互拷。不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。设置页可切换翻译来源和模型；热键点一下再按下组合键录制。三组热键不得相同。
 
 ## 加载路径
 

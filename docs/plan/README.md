@@ -11,12 +11,12 @@
 
 ## 进行中
 
-当前没有进行中计划。
+- [屏幕实时 OCR 翻译](./in-progress/2026-08-20-live-screen-ocr.md)：锁定屏幕区域后有界循环 OCR 再翻译；不做系统音频。
 
 ## 待进行
 
 - [TTime 对照后的后续能力](./pending/2026-08-19-ttime-inspired-follow-on.md)：历史、工具栏和剪贴板监听等；菜单栏 App 和输入框已拆出单独实施。
-- [视频字幕实时识别](./pending/2026-08-19-live-video-subtitles.md)：先做字幕条有界 OCR，再评估系统音频转写；本轮不实施。
+- [视频字幕实时识别](./pending/2026-08-19-live-video-subtitles.md)：路径 A 已拆到进行中的屏幕实时 OCR；本文件只留系统音频转写，本轮不实施。
 
 ## 暂时跳过
 

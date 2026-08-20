@@ -252,6 +252,7 @@ def test_preferences_round_trip_ocr_engine() -> None:
     assert prefs.to_env()["TRANSLATE_API_KEY"] == ""
     assert prefs.to_env()["OCR_API_KEY"] == ""
     assert prefs.to_env()["TRANSLATE_PROVIDER"] == "google_web"
+    assert prefs.to_env()["HOTKEY_LIVE_OCR"] == "alt+q"
 
 
 def test_preferences_copy_api_endpoint_and_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -294,7 +295,22 @@ def test_model_catalog_loads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert prefs.ocr_model_choices == ("current-ocr", "Unlimited-OCR", "other-ocr")
 
 
-def test_default_hotkeys_are_alt_e_and_alt_w() -> None:
+def test_default_hotkeys_are_alt_e_alt_w_and_alt_q() -> None:
     hotkey = HotkeySettings(_env_file=None)
     assert hotkey.selection == "alt+e"
     assert hotkey.ocr == "alt+w"
+    assert hotkey.live_ocr == "alt+q"
+
+
+def test_hotkey_settings_normalize_option_alias() -> None:
+    hotkey = HotkeySettings(selection="Option+Shift+E", _env_file=None)
+    assert hotkey.selection == "alt+shift+e"
+
+
+def test_hotkey_settings_reject_duplicate_manual_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HOTKEY_SELECTION", "option+e")
+    monkeypatch.setenv("HOTKEY_OCR", "alt+e")
+    with pytest.raises(ValidationError, match="must be different"):
+        HotkeySettings(_env_file=None)

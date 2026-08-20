@@ -10,12 +10,12 @@
 - 翻译与 OCR 通过独立环境变量配置；翻译默认 Google 内置网页源（免密钥），也可选用 Bing/DeepL 内置或官方/OpenAI 兼容源；只读一个配置文件；`config-check` 回读路径和就绪状态，但不调用上游。
 - OCR 默认先走本机 Vision，不够再用 Unlimited-OCR。CLI 支持本地图片和 macOS 圈选截屏。
 - 划词和 OCR 可通过 `listen` 热键或菜单栏 App 触发；菜单「输入翻译…」打开输入窗口。浮窗只显示原文和译文，点选后可用 `Command+C` 复制。设置页按翻译来源只显示需要的字段；「应用」立即生效并留在窗口，「保存」写入后关闭；内置网页源不用密钥。
-- 用户本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。历史和视频字幕尚未实施。当前没有开放 Issue。
-- 当前没有进行中计划。下一档产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的复制译文与有界历史。
+- 用户本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。屏幕实时 OCR 首次验收发现同步圈选阻塞主线程，已改为异步圈选；后续时延反馈确认旧循环会在处理后额外等待，现已改为约 0.8 秒的目标起点间隔，待重启 App 复验。历史尚未实施。当前没有开放 Issue。
+- 正在收尾 [屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)；系统音频转写仍待进行。下一档其它产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的复制译文与有界历史。
 
 ## 当前工作
 
-当前没有进行中计划。
+[屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)
 
 ## 按任务查找
 
@@ -26,6 +26,7 @@
 | 修改分层、端口或执行链 | [架构设计](./design/architecture.md) |
 | 修改环境变量或双模型边界 | [配置设计](./design/configuration.md) |
 | 修改 macOS 热键、菜单栏或浮窗 | [桌面热键设计](./design/desktop-hotkeys.md) |
+| 修改区域实时 OCR | [屏幕实时 OCR](./design/live-screen-ocr.md) |
 | 修改 OCR 本机/模型分流 | [OCR 分流](./design/ocr-routing.md) |
 | 更新计划、Issue 或日志 | [文档框架](./design/documentation-framework-guide.md) |
 | 执行仓库任务 | [AGENTS.md](../AGENTS.md) |

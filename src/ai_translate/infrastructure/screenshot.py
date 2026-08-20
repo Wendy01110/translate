@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from ai_translate.core.errors import ImageSourceError
+from ai_translate.core.models import ScreenRect
 from ai_translate.infrastructure.image_file import MAX_IMAGE_BYTES
 
 
@@ -33,6 +34,81 @@ class RegionScreenshot:
             return _read_capture(path, completed.returncode)
         finally:
             path.unlink(missing_ok=True)
+
+
+class RectCapture:
+    def __init__(
+        self,
+        *,
+        grabber: Callable[[ScreenRect], bytes] | None = None,
+    ) -> None:
+        self._grabber = grabber or _grab_rect_png
+
+    def capture_rect(self, rect: ScreenRect) -> tuple[bytes, str]:
+        if sys.platform != "darwin":
+            raise ImageSourceError("screenshot_unsupported")
+        canonical = rect.canonical()
+        if not canonical.is_usable():
+            raise ImageSourceError("region_too_small")
+        data = self._grabber(canonical)
+        if not data:
+            raise ImageSourceError("screenshot_failed")
+        if len(data) > MAX_IMAGE_BYTES:
+            raise ImageSourceError("image_too_large")
+        return data, "image/png"
+
+
+def appkit_to_quartz_rect(
+    rect: ScreenRect,
+    *,
+    main_display_height: float,
+) -> ScreenRect:
+    canonical = rect.canonical()
+    return ScreenRect(
+        x=canonical.x,
+        y=main_display_height - canonical.y - canonical.height,
+        width=canonical.width,
+        height=canonical.height,
+    )
+
+
+def _grab_rect_png(rect: ScreenRect) -> bytes:
+    from AppKit import NSBitmapImageRep, NSPNGFileType
+    from Quartz import (
+        CGDisplayBounds,
+        CGMainDisplayID,
+        CGRectMake,
+        CGWindowListCreateImage,
+        kCGNullWindowID,
+        kCGWindowImageDefault,
+        kCGWindowListOptionOnScreenOnly,
+    )
+
+    main_bounds = CGDisplayBounds(CGMainDisplayID())
+    capture_rect = appkit_to_quartz_rect(
+        rect,
+        main_display_height=float(main_bounds.size.height),
+    )
+    image = CGWindowListCreateImage(
+        CGRectMake(
+            capture_rect.x,
+            capture_rect.y,
+            capture_rect.width,
+            capture_rect.height,
+        ),
+        kCGWindowListOptionOnScreenOnly,
+        kCGNullWindowID,
+        kCGWindowImageDefault,
+    )
+    if image is None:
+        return b""
+    representation = NSBitmapImageRep.alloc().initWithCGImage_(image)
+    if representation is None:
+        return b""
+    png = representation.representationUsingType_properties_(NSPNGFileType, None)
+    if png is None:
+        return b""
+    return bytes(png)
 
 
 def _read_capture(path: Path, returncode: int) -> tuple[bytes, str]:

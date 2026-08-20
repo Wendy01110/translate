@@ -4,8 +4,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from ai_translate.core.hotkeys import format_hotkey_spec, parse_hotkey
 
 
 class TranslateSettings(BaseSettings):
@@ -155,6 +157,7 @@ class AppPreferences:
     target_lang: str
     hotkey_selection: str
     hotkey_ocr: str
+    hotkey_live_ocr: str
     translate_model: str
     ocr_model: str
     translate_base_url: str
@@ -184,6 +187,7 @@ class AppPreferences:
             "OCR_API_KEY": self.ocr_api_key,
             "HOTKEY_SELECTION": self.hotkey_selection,
             "HOTKEY_OCR": self.hotkey_ocr,
+            "HOTKEY_LIVE_OCR": self.hotkey_live_ocr,
         }
 
 
@@ -257,11 +261,25 @@ class HotkeySettings(BaseSettings):
 
     selection: str = "alt+e"
     ocr: str = "alt+w"
+    live_ocr: str = "alt+q"
 
-    @field_validator("selection", "ocr", mode="before")
+    @field_validator("selection", "ocr", "live_ocr", mode="before")
     @classmethod
-    def _strip_hotkey(cls, value: object) -> object:
-        return value.strip().lower() if isinstance(value, str) else value
+    def _normalize_hotkey(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return format_hotkey_spec(parse_hotkey(value.strip().lower()))
+
+    @model_validator(mode="after")
+    def _reject_duplicate_hotkeys(self) -> HotkeySettings:
+        parsed = {
+            parse_hotkey(self.selection),
+            parse_hotkey(self.ocr),
+            parse_hotkey(self.live_ocr),
+        }
+        if len(parsed) != 3:
+            raise ValueError("selection, OCR, and live OCR hotkeys must be different")
+        return self
 
 
 class Settings:
@@ -301,6 +319,7 @@ class Settings:
             target_lang=self.translate.target_lang,
             hotkey_selection=self.hotkey.selection,
             hotkey_ocr=self.hotkey.ocr,
+            hotkey_live_ocr=self.hotkey.live_ocr,
             translate_model=self.translate.model,
             ocr_model=self.ocr.model,
             translate_base_url=self.translate.base_url,

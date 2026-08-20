@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_image_args(ocr_translate)
     subparsers.add_parser(
         "listen",
-        help="Register macOS hotkeys for selection and OCR translation.",
+        help="Register macOS hotkeys for selection, OCR, and live OCR translation.",
     )
     subparsers.add_parser(
         "app",
@@ -88,6 +88,7 @@ def format_config_status(status: ConfigStatus) -> str:
             "hotkey:",
             f"  selection: {_display(status.hotkey_selection)}",
             f"  ocr: {_display(status.hotkey_ocr)}",
+            f"  live_ocr: {_display(status.hotkey_live_ocr)}",
         ]
     )
 

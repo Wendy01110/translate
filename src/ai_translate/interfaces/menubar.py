@@ -12,11 +12,18 @@ from ai_translate.interfaces.listen import DesktopListener
 _STATUS_TITLE = "译"
 
 
+def live_menu_title(live_hotkey: str, *, running: bool) -> str:
+    label = "停止实时翻译" if running else "实时翻译"
+    return f"{label}  {display_hotkey(live_hotkey)}"
+
+
 def menu_spec(
     selection_hotkey: str,
     ocr_hotkey: str,
     *,
     accessibility_ok: bool = True,
+    live_hotkey: str = "alt+q",
+    live_running: bool = False,
 ) -> list[tuple[str, str]]:
     permission = (
         "辅助功能：已开启" if accessibility_ok else "辅助功能：未开启，点此去设置"
@@ -24,6 +31,7 @@ def menu_spec(
     return [
         (f"划词翻译  {display_hotkey(selection_hotkey)}", "selection"),
         (f"截图翻译  {display_hotkey(ocr_hotkey)}", "ocr"),
+        (live_menu_title(live_hotkey, running=live_running), "live"),
         ("输入翻译…", "input"),
         (permission, "accessibility"),
         ("设置…", "settings"),
@@ -135,6 +143,11 @@ def _install_status_item(
         "translateOcr:",
         "",
     )
+    live_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        live_menu_title(listener.live_hotkey, running=listener.live_running),
+        "translateLive:",
+        "",
+    )
     permission_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
         "辅助功能：未开启，点此去设置",
         "openAccessibility:",
@@ -158,9 +171,10 @@ def _install_status_item(
     controller = (
         _menu_controller_class()
         .alloc()
-        .initWithListener_permissionItem_openSettings_openInput_(
+        .initWithListener_permissionItem_liveItem_openSettings_openInput_(
             listener,
             permission_item,
+            live_item,
             open_settings,
             open_input,
         )
@@ -168,6 +182,7 @@ def _install_status_item(
     for item in (
         selection_item,
         ocr_item,
+        live_item,
         input_item,
         permission_item,
         settings_item,
@@ -176,6 +191,7 @@ def _install_status_item(
         item.setTarget_(controller)
     menu.addItem_(selection_item)
     menu.addItem_(ocr_item)
+    menu.addItem_(live_item)
     menu.addItem_(input_item)
     menu.addItem_(NSMenuItem.separatorItem())
     menu.addItem_(permission_item)
@@ -224,10 +240,11 @@ def _menu_controller_class() -> type:
     import objc
 
     class AITranslateMenuBarController(NSObject):
-        def initWithListener_permissionItem_openSettings_openInput_(
+        def initWithListener_permissionItem_liveItem_openSettings_openInput_(
             self,
             hosted,
             permission_item,
+            live_item,
             open_settings_cb,
             open_input_cb,
         ):
@@ -236,6 +253,7 @@ def _menu_controller_class() -> type:
                 return None
             self.listener = hosted
             self.permission_item = permission_item
+            self.live_item = live_item
             self.open_settings_cb = open_settings_cb
             self.open_input_cb = open_input_cb
             self.pending_settings = False
@@ -250,6 +268,9 @@ def _menu_controller_class() -> type:
 
         def translateOcr_(self, _sender) -> None:
             threading.Thread(target=self.listener.handle_ocr, daemon=True).start()
+
+        def translateLive_(self, _sender) -> None:
+            threading.Thread(target=self.listener.handle_live_ocr, daemon=True).start()
 
         def openAccessibility_(self, _sender) -> None:
             open_accessibility_settings()
@@ -324,6 +345,12 @@ def _menu_controller_class() -> type:
             ok = self.listener.accessibility_ready
             self.permission_item.setTitle_(
                 "辅助功能：已开启" if ok else "辅助功能：未开启，点此去设置"
+            )
+            self.live_item.setTitle_(
+                live_menu_title(
+                    self.listener.live_hotkey,
+                    running=self.listener.live_running,
+                )
             )
 
     _MenuBarController = AITranslateMenuBarController

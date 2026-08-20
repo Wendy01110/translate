@@ -12,7 +12,7 @@ from ai_translate.bootstrap.composition import (
 from ai_translate.config import AppPreferences, Settings, resolve_env_path
 from ai_translate.infrastructure.env_file import upsert_env_values
 from ai_translate.infrastructure.image_file import load_image_file
-from ai_translate.infrastructure.screenshot import RegionScreenshot
+from ai_translate.infrastructure.screenshot import RectCapture, RegionScreenshot
 from ai_translate.infrastructure.selected_text import (
     SelectedTextSource,
     accessibility_trusted,
@@ -21,8 +21,10 @@ from ai_translate.infrastructure.selected_text import (
 from ai_translate.interfaces.cli import CliServices, run
 from ai_translate.interfaces.input_box import InputTranslatePresenter
 from ai_translate.interfaces.listen import DesktopListener
+from ai_translate.interfaces.live_overlay import LiveOverlayPresenter
 from ai_translate.interfaces.menubar import cocoa_app_loop, run_status_app
 from ai_translate.interfaces.overlay import OverlayPresenter
+from ai_translate.interfaces.region_picker import RegionPicker
 from ai_translate.interfaces.settings import SettingsPresenter
 
 
@@ -44,6 +46,7 @@ def _build_services(settings: Settings, args: Sequence[str]) -> CliServices:
     start_listener = None
     start_app = None
     if "listen" in args or "app" in args:
+        live_ui = LiveOverlayPresenter()
         listener = DesktopListener(
             selection=selection_service(settings),
             ocr_translate=ocr_translate_service(settings),
@@ -59,7 +62,12 @@ def _build_services(settings: Settings, args: Sequence[str]) -> CliServices:
             permission_prompt=(
                 request_accessibility_prompt if "app" in args else None
             ),
+            live_hotkey=settings.hotkey.live_ocr,
+            pick_region=RegionPicker(),
+            capture_rect=RectCapture().capture_rect,
+            live_presenter=live_ui,
         )
+        live_ui.set_stop(listener.stop_live)
         if "app" in args:
             def save_preferences(prefs: AppPreferences) -> None:
                 upsert_env_values(resolve_env_path(), prefs.to_env())
@@ -71,6 +79,7 @@ def _build_services(settings: Settings, args: Sequence[str]) -> CliServices:
                     target_lang=refreshed.translate.target_lang,
                     selection_hotkey=refreshed.hotkey.selection,
                     ocr_hotkey=refreshed.hotkey.ocr,
+                    live_hotkey=refreshed.hotkey.live_ocr,
                 )
 
             settings_ui = SettingsPresenter(

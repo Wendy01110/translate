@@ -44,16 +44,19 @@ def test_display_hotkey_uses_option_glyph() -> None:
     assert display_hotkey("cmd+shift+t") == "⇧⌘T"
 
 
-def test_menu_spec_lists_selection_ocr_input_and_quit() -> None:
+def test_menu_spec_lists_selection_ocr_live_input_and_quit() -> None:
     items = menu_spec("alt+e", "alt+w")
     assert items[0] == ("划词翻译  ⌥E", "selection")
     assert items[1] == ("截图翻译  ⌥W", "ocr")
-    assert items[2] == ("输入翻译…", "input")
-    assert items[3] == ("辅助功能：已开启", "accessibility")
+    assert items[2] == ("实时翻译  ⌥Q", "live")
+    assert items[3] == ("输入翻译…", "input")
+    assert items[4] == ("辅助功能：已开启", "accessibility")
     assert items[-1] == ("退出", "quit")
     denied = menu_spec("alt+e", "alt+w", accessibility_ok=False)
-    assert denied[3] == ("辅助功能：未开启，点此去设置", "accessibility")
+    assert denied[4] == ("辅助功能：未开启，点此去设置", "accessibility")
     assert items[-2] == ("设置…", "settings")
+    running = menu_spec("alt+e", "alt+w", live_running=True)
+    assert running[2] == ("停止实时翻译  ⌥Q", "live")
 
 
 def test_single_instance_lock_rejects_a_second_copy(tmp_path, monkeypatch) -> None:

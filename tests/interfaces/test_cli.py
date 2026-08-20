@@ -29,6 +29,7 @@ def _status(**overrides: object) -> ConfigStatus:
         "ocr_vision_available": False,
         "hotkey_selection": "alt+e",
         "hotkey_ocr": "alt+w",
+        "hotkey_live_ocr": "alt+q",
         "env_file": "",
     }
     payload.update(overrides)
@@ -107,6 +108,7 @@ def test_format_config_status_never_contains_secret_values() -> None:
     assert "sk-" not in rendered
     assert "Bearer" not in rendered
     assert "provider: openai" in rendered
+    assert "live_ocr: alt+q" in rendered
     assert "engine: auto" in rendered
     assert "image_mode: auto" in rendered
     assert "max_tokens: 24000" in rendered

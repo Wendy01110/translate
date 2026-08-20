@@ -18,6 +18,7 @@ def _form(**overrides: str) -> dict[str, str]:
         "target_lang": "zh",
         "hotkey_selection": "alt+e",
         "hotkey_ocr": "alt+w",
+        "hotkey_live_ocr": "alt+q",
         "translate_model": "m",
         "ocr_model": "Unlimited-OCR",
         "translate_base_url": "https://translate.example/v1",
@@ -51,6 +52,8 @@ def test_parse_settings_form_accepts_ocr_engine_and_hotkeys() -> None:
     assert prefs.to_env()["OCR_API_KEY"] == "ocr-test-key"
     assert prefs.to_env()["TRANSLATE_PROVIDER"] == "openai"
     assert prefs.hotkey_ocr == "alt+w"
+    assert prefs.hotkey_live_ocr == "alt+q"
+    assert prefs.to_env()["HOTKEY_LIVE_OCR"] == "alt+q"
 
 
 def test_parse_settings_form_accepts_deepl_provider() -> None:
@@ -150,6 +153,8 @@ def test_parse_settings_form_rejects_unknown_engine() -> None:
 def test_parse_settings_form_rejects_duplicate_hotkeys() -> None:
     with pytest.raises(ValueError, match="热键不能相同"):
         parse_settings_form(**_form(hotkey_ocr="option+e"))
+    with pytest.raises(ValueError, match="热键不能相同"):
+        parse_settings_form(**_form(hotkey_live_ocr="option+e"))
 
 
 def test_parse_settings_form_rejects_unknown_provider() -> None:

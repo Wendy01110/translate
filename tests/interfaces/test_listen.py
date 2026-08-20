@@ -1,6 +1,6 @@
 from ai_translate.core.errors import ImageSourceError, SelectionReadError
-from ai_translate.core.models import JobKind, JobStatus, TranslateJob
-from ai_translate.features.ocr_translate import OcrTranslateService
+from ai_translate.core.models import JobKind, JobStatus, ScreenRect, TranslateJob
+from ai_translate.features.ocr_translate import LIVE_STOPPED, OcrTranslateService
 from ai_translate.features.selection import SelectionTranslateService
 from ai_translate.interfaces.listen import DesktopListener
 from tests.support import FakeOcrEngine, FakeTranslator
@@ -114,6 +114,7 @@ def test_run_passes_configured_hotkey_strings() -> None:
     assert listener.run() == 0
     assert "alt+e" in captured
     assert "alt+w" in captured
+    assert "alt+q" in captured
 
 
 def test_run_shows_accessibility_reminder_when_untrusted() -> None:
@@ -203,11 +204,13 @@ def test_replace_runtime_updates_ocr_service_and_hotkeys() -> None:
         target_lang="ja",
         selection_hotkey="alt+a",
         ocr_hotkey="alt+s",
+        live_hotkey="alt+d",
     )
     assert listener._ocr_translate is replacement
     assert listener.selection_hotkey == "alt+a"
+    assert listener.live_hotkey == "alt+d"
     assert started.stopped == 1
-    assert created[-1].mapping.keys() >= {"alt+a", "alt+s"}
+    assert created[-1].mapping.keys() >= {"alt+a", "alt+s", "alt+d"}
 
 
 def test_typed_text_reuses_selection_translator() -> None:
@@ -253,3 +256,246 @@ def test_busy_lock_ignores_second_trigger() -> None:
     listener._busy.release()
     assert started["n"] == 0
     assert presenter.jobs == []
+
+
+def _live_listener(**overrides: object) -> tuple[DesktopListener, _Presenter]:
+    ocr = overrides.pop("ocr", FakeOcrEngine(text="Hello"))
+    translator = overrides.pop("translator", FakeTranslator(translated_text="你好"))
+    payload = {
+        "ocr_translate": OcrTranslateService(ocr, translator),
+        "pick_region": lambda: ScreenRect(x=10, y=20, width=80, height=40),
+        "capture_rect": lambda _rect: (b"frame-a", "image/png"),
+        "hash_image": lambda data: data.decode(),
+        "live_interval_seconds": 30.0,
+    }
+    payload.update(overrides)
+    return _listener(**payload)
+
+
+class _AsyncPicker:
+    needs_main_thread = False
+
+    def __init__(self) -> None:
+        self.callback = None
+        self.cancelled = 0
+
+    def start(self, callback) -> None:
+        self.callback = callback
+
+    def complete(self, rect: ScreenRect | None) -> None:
+        callback = self.callback
+        self.callback = None
+        if callback is not None:
+            callback(rect)
+
+    def cancel(self) -> None:
+        self.cancelled += 1
+        self.complete(None)
+
+
+class _StopOnFirstWait:
+    def __init__(self) -> None:
+        self.waits: list[float] = []
+
+    def is_set(self) -> bool:
+        return False
+
+    def wait(self, seconds: float) -> bool:
+        self.waits.append(seconds)
+        return True
+
+
+def test_live_tick_skips_unchanged_frame_without_second_ocr() -> None:
+    ocr = FakeOcrEngine(text="Hello")
+    translator = FakeTranslator(translated_text="你好")
+    listener, presenter = _live_listener(ocr=ocr, translator=translator)
+    listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
+    listener._live_stop.clear()
+    listener._live_running = True
+    assert listener.live_tick() == "show"
+    assert listener.live_tick() == "skip_frame"
+    assert len(ocr.calls) == 1
+    assert len(translator.calls) == 1
+    assert presenter.jobs[0].translated_text == "你好"
+
+
+def test_live_hotkey_toggles_start_and_stop() -> None:
+    listener, presenter = _live_listener()
+    listener.handle_live_ocr()
+    assert listener.live_running is True
+    assert presenter.statuses[-1] == "识别中…"
+    listener.handle_live_ocr()
+    assert listener.live_running is False
+
+
+def test_live_cancel_pick_does_not_capture() -> None:
+    captured: list[ScreenRect] = []
+    listener, presenter = _live_listener(
+        pick_region=lambda: None,
+        capture_rect=lambda rect: captured.append(rect) or (b"png", "image/png"),
+    )
+    listener.handle_live_ocr()
+    assert listener.live_running is False
+    assert captured == []
+    assert presenter.jobs == []
+
+
+def test_async_live_picker_does_not_start_loop_until_selection_finishes() -> None:
+    picker = _AsyncPicker()
+    listener, presenter = _live_listener(pick_region=picker)
+    listener.handle_live_ocr()
+
+    assert listener._live_starting is True
+    assert listener.live_running is False
+    assert presenter.statuses == []
+
+    picker.complete(ScreenRect(x=10, y=20, width=80, height=40))
+
+    assert listener._live_starting is False
+    assert listener.live_running is True
+    assert presenter.statuses[-1] == "识别中…"
+    listener.stop_live()
+
+
+def test_live_hotkey_cancels_open_async_picker() -> None:
+    picker = _AsyncPicker()
+    listener, presenter = _live_listener(pick_region=picker)
+    listener.handle_live_ocr()
+    listener.handle_live_ocr()
+
+    assert picker.cancelled == 1
+    assert listener._live_starting is False
+    assert listener.live_running is False
+    assert presenter.jobs == []
+
+
+def test_one_shot_ocr_is_ignored_while_live_runs() -> None:
+    ocr = FakeOcrEngine(text="Hello")
+    listener, presenter = _live_listener(ocr=ocr)
+    listener._live_running = True
+    listener.handle_ocr()
+    assert presenter.jobs == []
+    assert ocr.calls == []
+
+
+def test_one_shot_ocr_is_ignored_while_live_picker_is_open() -> None:
+    ocr = FakeOcrEngine(text="Hello")
+    listener, presenter = _live_listener(ocr=ocr)
+    listener._live_starting = True
+    listener.handle_ocr()
+    assert presenter.jobs == []
+    assert ocr.calls == []
+
+
+def test_overlapping_live_ticks_are_skipped() -> None:
+    listener, _presenter = _live_listener()
+    listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
+    listener._live_stop.clear()
+    listener._live_running = True
+    listener._live_tick_lock.acquire()
+    assert listener.live_tick() is None
+    listener._live_tick_lock.release()
+
+
+def test_live_loop_counts_processing_time_toward_refresh_interval(monkeypatch) -> None:
+    listener, _presenter = _live_listener(live_interval_seconds=0.8)
+    listener._live_generation = 1
+    listener._live_running = True
+    stop = _StopOnFirstWait()
+    listener._live_stop = stop
+    timestamps = iter((10.0, 10.3))
+    monkeypatch.setattr(
+        "ai_translate.interfaces.listen.time.monotonic",
+        lambda: next(timestamps),
+    )
+    monkeypatch.setattr(listener, "live_tick", lambda _generation: "show")
+
+    listener._live_loop(1)
+
+    assert len(stop.waits) == 1
+    assert abs(stop.waits[0] - 0.5) < 1e-9
+
+
+def test_live_loop_does_not_add_delay_after_slow_tick(monkeypatch) -> None:
+    listener, _presenter = _live_listener(live_interval_seconds=0.8)
+    listener._live_generation = 1
+    listener._live_running = True
+    stop = _StopOnFirstWait()
+    listener._live_stop = stop
+    timestamps = iter((10.0, 11.2))
+    monkeypatch.setattr(
+        "ai_translate.interfaces.listen.time.monotonic",
+        lambda: next(timestamps),
+    )
+    monkeypatch.setattr(listener, "live_tick", lambda _generation: "show")
+
+    listener._live_loop(1)
+
+    assert stop.waits == [0.0]
+
+
+def test_stop_during_capture_discards_frame_before_ocr() -> None:
+    holder: dict[str, DesktopListener] = {}
+    ocr = FakeOcrEngine(text="Hello")
+    translator = FakeTranslator(translated_text="你好")
+
+    def capture(_rect: ScreenRect) -> tuple[bytes, str]:
+        holder["listener"].stop_live()
+        return b"frame-a", "image/png"
+
+    listener, presenter = _live_listener(
+        ocr=ocr,
+        translator=translator,
+        capture_rect=capture,
+    )
+    holder["listener"] = listener
+    listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
+    listener._live_stop.clear()
+    listener._live_running = True
+
+    assert listener.live_tick() == LIVE_STOPPED
+    assert ocr.calls == []
+    assert translator.calls == []
+    assert presenter.jobs == []
+
+
+def test_stop_during_translation_discards_stale_result() -> None:
+    holder: dict[str, DesktopListener] = {}
+    translator = FakeTranslator(translated_text="你好")
+    original_translate = translator.translate
+
+    def translate_then_stop(request):
+        result = original_translate(request)
+        holder["listener"].stop_live()
+        return result
+
+    translator.translate = translate_then_stop
+    listener, presenter = _live_listener(translator=translator)
+    holder["listener"] = listener
+    listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
+    listener._live_stop.clear()
+    listener._live_running = True
+
+    assert listener.live_tick() == LIVE_STOPPED
+    assert len(translator.calls) == 1
+    assert presenter.jobs == []
+
+
+def test_replace_runtime_stops_active_live_loop() -> None:
+    listener, _presenter = _live_listener()
+    listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
+    listener._live_stop.clear()
+    listener._live_running = True
+
+    listener.replace_runtime(
+        selection=listener._selection,
+        ocr_translate=listener._ocr_translate,
+        source_lang="en",
+        target_lang="ja",
+        selection_hotkey="alt+e",
+        ocr_hotkey="alt+w",
+        live_hotkey="alt+q",
+    )
+
+    assert listener.live_running is False
+    assert listener._live_rect is None

@@ -19,6 +19,7 @@ ALLOWED_ENV_KEYS = frozenset(
         "OCR_API_KEY",
         "HOTKEY_SELECTION",
         "HOTKEY_OCR",
+        "HOTKEY_LIVE_OCR",
     }
 )
 _FORBIDDEN_ENV_KEYS = frozenset(
