@@ -65,7 +65,9 @@ cp "${ROOT}/macos/Info.plist" "${CONTENTS}/Info.plist"
 printf '%s\n' "${ROOT}" > "${RESOURCES}/project_root"
 printf '%s\n' "${SITE}" > "${RESOURCES}/site_packages"
 
-if [[ -d "${ROOT}/macos/AppIcon.iconset" ]]; then
+if [[ -f "${ROOT}/macos/AppIcon.icns" ]]; then
+  cp "${ROOT}/macos/AppIcon.icns" "${RESOURCES}/AppIcon.icns"
+elif [[ -d "${ROOT}/macos/AppIcon.iconset" ]]; then
   iconutil -c icns "${ROOT}/macos/AppIcon.iconset" -o "${RESOURCES}/AppIcon.icns"
 fi
 

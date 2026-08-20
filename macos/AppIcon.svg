@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="170" y1="120" x2="850" y2="920" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#163A7A"/>
+      <stop offset="0.52" stop-color="#3D55D2"/>
+      <stop offset="1" stop-color="#7857C8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(300 222) rotate(45) scale(570)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DE6FF" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#7DE6FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="blueCard" x1="230" y1="260" x2="590" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BAF1FF"/>
+      <stop offset="1" stop-color="#65CDF3"/>
+    </linearGradient>
+    <linearGradient id="whiteCard" x1="420" y1="438" x2="810" y2="786" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E9F1FF"/>
+    </linearGradient>
+    <filter id="tileShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="30" stdDeviation="30" flood-color="#0A1749" flood-opacity="0.34"/>
+    </filter>
+    <filter id="cardShadow" x="-30%" y="-30%" width="170%" height="190%">
+      <feDropShadow dx="0" dy="20" stdDeviation="20" flood-color="#071D61" flood-opacity="0.30"/>
+    </filter>
+    <clipPath id="tileClip">
+      <path d="M302 68C157 68 84 141 84 286V738C84 883 157 956 302 956H722C867 956 940 883 940 738V286C940 141 867 68 722 68H302Z"/>
+    </clipPath>
+  </defs>
+
+  <path d="M302 82C157 82 84 155 84 300V752C84 897 157 970 302 970H722C867 970 940 897 940 752V300C940 155 867 82 722 82H302Z" fill="#071433" opacity="0.30" filter="url(#tileShadow)"/>
+  <path d="M302 68C157 68 84 141 84 286V738C84 883 157 956 302 956H722C867 956 940 883 940 738V286C940 141 867 68 722 68H302Z" fill="url(#background)"/>
+
+  <g clip-path="url(#tileClip)">
+    <rect x="84" y="68" width="856" height="888" fill="url(#glow)"/>
+    <circle cx="802" cy="770" r="282" fill="#8E59D8" opacity="0.18"/>
+    <path d="M152 722C285 850 479 904 676 860C754 843 824 809 886 761" fill="none" stroke="#C6F4FF" stroke-width="22" stroke-linecap="round" opacity="0.12"/>
+  </g>
+
+  <path d="M302 82C164 82 98 148 98 286V738C98 876 164 942 302 942H722C860 942 926 876 926 738V286C926 148 860 82 722 82H302Z" fill="none" stroke="#FFFFFF" stroke-width="5" opacity="0.18"/>
+
+  <g transform="rotate(-7 407 423)" filter="url(#cardShadow)">
+    <path d="M213 238H516C579 238 618 277 618 340V485C618 548 579 587 516 587H456L537 650L413 587H298C235 587 196 548 196 485V340C196 277 235 238 298 238H213Z" fill="url(#blueCard)"/>
+    <path d="M298 256H516C566 256 600 290 600 340V485C600 530 572 562 530 568" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.26"/>
+    <text x="406" y="500" fill="#123A7B" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', Arial, sans-serif" font-size="236" font-weight="760" text-anchor="middle">A</text>
+  </g>
+
+  <g transform="rotate(6 620 611)" filter="url(#cardShadow)">
+    <path d="M500 421H718C781 421 820 460 820 523V668C820 731 781 770 718 770H610L487 834L566 770H500C437 770 398 731 398 668V523C398 460 437 421 500 421Z" fill="url(#whiteCard)"/>
+    <path d="M500 439H718C768 439 802 473 802 523V668C802 713 774 745 732 751" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.72"/>
+    <text x="610" y="681" fill="#2A3FB4" font-family="'PingFang SC', 'Hiragino Sans GB', -apple-system, sans-serif" font-size="218" font-weight="700" text-anchor="middle">文</text>
+  </g>
+</svg>
