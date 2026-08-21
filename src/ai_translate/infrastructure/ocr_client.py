@@ -14,8 +14,19 @@ from ai_translate.infrastructure.openai_compat import (
     post_chat_completion,
 )
 
-_SINGLE_PROMPT = "document parsing."
-_MULTI_PROMPT = "Multi page parsing."
+_UNLIMITED_OCR_MODEL = "unlimited-ocr"
+_UNLIMITED_SINGLE_PROMPT = "document parsing."
+_UNLIMITED_MULTI_PROMPT = "Multi page parsing."
+_OPENAI_VISION_SINGLE_PROMPT = (
+    "Extract all visible text from this image. Return only the extracted text, "
+    "preserving reading order and line breaks. "
+    "Do not add commentary or Markdown fences."
+)
+_OPENAI_VISION_MULTI_PROMPT = (
+    "Extract all visible text from these images in the supplied page order. "
+    "Return only the extracted text, preserving reading order and line breaks. "
+    "Separate pages with one blank line. Do not add commentary or Markdown fences."
+)
 _MULTI_IMAGE_MODES = frozenset({"tiny", "small", "base"})
 
 
@@ -45,10 +56,14 @@ class HttpOcrEngine:
         except ValueError:
             return self._failure("ocr_image_mode_unsupported")
 
+        unlimited_contract = _uses_unlimited_ocr_contract(self._settings.model)
         content: list[dict[str, Any]] = [
             {
                 "type": "text",
-                "text": _SINGLE_PROMPT if len(pages) == 1 else _MULTI_PROMPT,
+                "text": _ocr_prompt(
+                    page_count=len(pages),
+                    unlimited_contract=unlimited_contract,
+                ),
             }
         ]
         content.extend(
@@ -63,19 +78,26 @@ class HttpOcrEngine:
             }
             for image_bytes, mime_type in pages
         )
+        payload: dict[str, Any] = {
+            "model": self._settings.model,
+            "temperature": 0,
+            "max_tokens": self._settings.max_tokens,
+            "messages": [{"role": "user", "content": content}],
+        }
+        if unlimited_contract:
+            payload.update(
+                {
+                    "skip_special_tokens": False,
+                    "images_config": {"image_mode": image_mode},
+                }
+            )
+
         _, body, error = post_chat_completion(
             self._client,
             base_url=self._settings.base_url,
             api_key=self._settings.api_key.get_secret_value(),
             timeout_seconds=self._settings.timeout_seconds,
-            payload={
-                "model": self._settings.model,
-                "temperature": 0,
-                "max_tokens": self._settings.max_tokens,
-                "skip_special_tokens": False,
-                "images_config": {"image_mode": image_mode},
-                "messages": [{"role": "user", "content": content}],
-            },
+            payload=payload,
         )
         if error or body is None:
             return self._failure(error or "empty_response", image_mode=image_mode)
@@ -122,6 +144,24 @@ def resolve_image_mode(page_count: int, configured_mode: str) -> str:
     if page_count > 1 and image_mode not in _MULTI_IMAGE_MODES:
         raise ValueError("gundam and large only support a single image")
     return image_mode
+
+
+def _uses_unlimited_ocr_contract(model: str) -> bool:
+    return model.strip().casefold() == _UNLIMITED_OCR_MODEL
+
+
+def _ocr_prompt(*, page_count: int, unlimited_contract: bool) -> str:
+    if unlimited_contract:
+        return (
+            _UNLIMITED_SINGLE_PROMPT
+            if page_count == 1
+            else _UNLIMITED_MULTI_PROMPT
+        )
+    return (
+        _OPENAI_VISION_SINGLE_PROMPT
+        if page_count == 1
+        else _OPENAI_VISION_MULTI_PROMPT
+    )
 
 
 def _choice_content(payload: dict[str, Any]) -> tuple[str | None, str | None]:

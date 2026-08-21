@@ -68,6 +68,7 @@
 
 - 已新增 `LocalAdvancedOcrSettings`、`PaddleOcrEngine` 懒加载适配、PP-OCRv6 tiny/small/medium 有界档位和 CPU 边界；默认 tiny，优先降低本地时延。
 - 已完成本地 Vision → PaddleOCR 与 API OCR.space → Unlimited-OCR 两组串行分流，并组成四层 `auto`；新增 `paddle` 强制模式，Windows 设置页从本地高级开始。
+- API 高级客户端现在按模型闭合两种 OpenAI 兼容合同：`Unlimited-OCR` 保留原有专用提示词、`skip_special_tokens` 和 `images_config`；其它视觉模型发送标准 `image_url` 消息和只返回原文的明确提示，不再把私有参数透传给通用模型。对应 HTTP mock 合同测试已补齐。
 - 已同步 `.env.example`、README、`config-check`、macOS/Windows 设置和稳定设计；两个桌面设置页均可切换 PP-OCRv6 `tiny`、`small`、`medium`，并把选择写入 `OCR_LOCAL_ADVANCED_MODEL_TIER` 后立即重建运行时。
 - 已在 macOS/Windows 桌面监听路径接入 Paddle 首次初始化提醒：只在真正创建所选模型 pipeline 前显示，同一引擎实例在并发调用或初始化失败重试时也只提示一次；提醒器异常不影响 OCR，普通图片 CLI 不弹桌面提醒。
 - macOS 验收环境曾使用 Python 3.13.14 arm64、PaddleOCR 3.7.0 与 PaddlePaddle 3.3.0；当前 Windows 11 x64 验收环境使用 Python 3.13.15 AMD64 和同版本 Paddle 依赖。两端 `paddle.utils.run_check()` 均确认 PaddlePaddle 可在 1 个 CPU 上运行，`pip check` 无依赖冲突；macOS 原 Python 3.14 环境保留为 `.venv-python314-backup-20260820`，没有删除。
@@ -77,4 +78,4 @@
 - Windows 正式 CLI 对三行中英文测试图完整识别，缓存模型进程冷启动用时 3.363 秒；纯英文测试图经本地 OCR 后调用 Google 内置翻译源，3.869 秒返回中文。该结果证明 Windows 本地高级与 OCR 后翻译链路可用，不替代真实截图、复杂版面和普遍精度验收。
 - PaddleOCR、四层路由、composition、配置、设置和 CLI 定向测试已通过；其中首次加载提醒相关的 Paddle、composition、overlay 与 App 定向测试 31 项通过，Python 3.13 环境下完整离线套件 249 项通过，`pip check` 与 `git diff --check` 通过。
 - macOS App 已重新构建并签名，arm64 启动器链接 Homebrew Python 3.13，嵌入的新项目 site-packages 路径、Info.plist 和代码签名检查通过；打开后进程实际从新环境加载并保持运行。
-- Windows 验收未修改真实 `.env`；当前静态回读是 `OCR_ENGINE=auto`、PP-OCRv6 tiny，本地高级就绪，API 两层未配置。已下载并初始化 Windows tiny 模型并调用 Google 内置翻译源；未调用 OCR.space 或 API 高级 OCR。剩余验证是两端桌面首次提醒、Windows 真实截屏和经单独配置后的 API 两层实测。
+- Windows 项目 `.env` 已保持 `OCR_ENGINE=auto` 与 PP-OCRv6 tiny，并把 API 高级独立配置到本机 `llm-token-router` 的已验证视觉模型。项目客户端真实识别两行合成图时只返回原文；正式 CLI 强制 API 高级 OCR 和 API 高级 OCR 后 Router 翻译均成功。OCR.space 使用官方公共 `helloworld` 测试 key 的两次合成图请求均到达服务但返回 HTTP 503，未把公共 key 写入 `.env`，因此 API 普通仍没有成功真测。剩余验证是两端桌面首次提醒、Windows 真实截屏和 OCR.space 在可用额度下的成功调用。

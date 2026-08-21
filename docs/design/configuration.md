@@ -66,7 +66,7 @@ API 高级：
 - `OCR_MODELS`：设置页可选的 OCR 模型列表，逗号分隔。当前 `OCR_MODEL` 会自动加入列表。不向网关查询模型。
 - `OCR_TIMEOUT_SECONDS`：单次 OCR 请求超时，默认 180。
 - `OCR_MAX_TOKENS`：单次 OCR 最大输出 token，默认 24000。
-- `OCR_IMAGE_MODE`：视觉切图模式。空或 `auto` 表示单图 `gundam`、多图 `base`；也可显式设为 `tiny`、`small`、`base`、`large` 或 `gundam`。多图不得使用 `gundam` 或 `large`。
+- `OCR_IMAGE_MODE`：视觉切图模式。空或 `auto` 表示单图 `gundam`、多图 `base`；也可显式设为 `tiny`、`small`、`base`、`large` 或 `gundam`。多图不得使用 `gundam` 或 `large`。该值会进入 Unlimited-OCR 专用请求；其它 OpenAI 兼容视觉模型仍保留结果中的解析模式，但不接收这个非标准上游字段。
 
 热键：
 
@@ -89,7 +89,7 @@ OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `list
 
 不得把 `.env.example` 当作运行配置或设置页写入目标。进程环境里的 `TRANSLATE_*` / `OCR_*` / `HOTKEY_*` 覆盖文件中的同名项。`config-check` 输出 `config.env_file`，便于确认实际读写路径。密钥不得写进 `.app`。
 
-本地高级 PaddleOCR 在进程内懒加载，按页从内存解码图片，不把原图写盘；默认使用 PP-OCRv6 tiny 的检测与识别模型并关闭方向分类、展开和文本行方向三个附加模型。可选依赖未安装时不构造客户端，首次实际初始化可能从官方模型源下载文件。API 普通客户端向 OCR.space 发送 `apikey` 请求头和包含 `base64Image`、`language`、`OCREngine` 的 multipart 表单，发送前限制单张原图不超过 1,000,000 字节，响应体上限为 2,000,000 字节，不记录原图或上游错误详情。API 高级客户端按 Unlimited-OCR 网关合同发送 `document parsing.` / `Multi page parsing.`、`temperature=0`、`skip_special_tokens=false` 和 `images_config.image_mode`，不发送 `custom_logit_processor` 或 `vllm_xargs`。两套 API 的 `httpx` 都使用 `trust_env=false`；识别文本清理版面标记后再交给翻译端口，API 高级响应 `finish_reason=length` 视为失败，不返回残缺正文。
+本地高级 PaddleOCR 在进程内懒加载，按页从内存解码图片，不把原图写盘；默认使用 PP-OCRv6 tiny 的检测与识别模型并关闭方向分类、展开和文本行方向三个附加模型。可选依赖未安装时不构造客户端，首次实际初始化可能从官方模型源下载文件。API 普通客户端向 OCR.space 发送 `apikey` 请求头和包含 `base64Image`、`language`、`OCREngine` 的 multipart 表单，发送前限制单张原图不超过 1,000,000 字节，响应体上限为 2,000,000 字节，不记录原图或上游错误详情。API 高级客户端在 `OCR_MODEL=Unlimited-OCR` 时保留其网关合同，发送 `document parsing.` / `Multi page parsing.`、`temperature=0`、`skip_special_tokens=false` 和 `images_config.image_mode`；其它模型发送标准 OpenAI `image_url` 内容、明确的纯文本 OCR 提示、`temperature=0` 与输出 token 上限，不发送 Unlimited-OCR 私有字段。两套 API 的 `httpx` 都使用 `trust_env=false`；识别文本清理版面标记后再交给翻译端口，API 高级响应 `finish_reason=length` 视为失败，不返回残缺正文。
 
 ## 主流程与失败边界
 

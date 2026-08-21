@@ -1,6 +1,6 @@
 # AI Translate
 
-本机划词翻译和截图翻译。选中外文按热键即可看到译文；圈选屏幕可以先识别文字再翻译；也可以锁定一块区域做实时识别；还可以在输入窗口里粘贴或键入后再译。macOS 版本已经过本机试用；Windows 11 x64 源码安装、托盘进程、设置窗口、单实例、命令行真实翻译和本地 PaddleOCR 已完成首轮真机验证，热键划词、圈选、多屏/DPI 和实时停止仍待交互验收。
+本机划词翻译和截图翻译。选中外文按热键即可看到译文；圈选屏幕可以先识别文字再翻译；也可以锁定一块区域做实时识别；还可以在输入窗口里粘贴或键入后再译。macOS 版本已经过本机试用；Windows 11 x64 源码安装、托盘进程、设置窗口、单实例、三组全局热键注册、命令行真实翻译、本地 PaddleOCR 和本机 Router 高级 OCR 已完成首轮真机验证，热键实际触发、圈选、多屏/DPI 和实时停止仍待交互验收。
 
 ## macOS 安装
 
@@ -60,6 +60,24 @@ macOS 热键本身不需要辅助功能；没有辅助功能时，先 `Command+C
 
 仓库里如果已经有 `.env`，App 会优先用它。进阶字段见 `.env.example`。
 
+### 本机 LLM Token Router
+
+若本机已在 `127.0.0.1:8000` 运行 `llm-token-router`，可把翻译和 API 高级 OCR 分别接到它；两侧仍各写自己的地址和模型，不互借配置。当前本地网关不校验调用方密钥时，项目的两个 `API_KEY` 可以留空。简单翻译可使用 Router 中已配置的低延迟文本模型，高级 OCR 应选择已确认支持图片输入的模型；`auto` 适合让 Router 自行选路。Router 停止时这两条远程能力会按各自超时返回失败，本地 PaddleOCR 不受影响。
+
+```dotenv
+TRANSLATE_PROVIDER=openai
+TRANSLATE_BASE_URL=http://127.0.0.1:8000/v1
+TRANSLATE_API_KEY=
+TRANSLATE_MODEL=auto
+TRANSLATE_TIMEOUT_SECONDS=120
+
+OCR_BASE_URL=http://127.0.0.1:8000/v1
+OCR_API_KEY=
+OCR_MODEL=auto
+```
+
+`OCR_MODEL=Unlimited-OCR` 时客户端保留 Unlimited-OCR 的专用提示词与切图参数；其它模型使用标准 OpenAI `image_url` 消息，并明确要求只返回识别文字。修改 `.env` 后重启桌面 App，或在设置页点「应用」立即重建运行时。
+
 ## 命令行
 
 macOS 安装后也可以用命令行：
@@ -93,6 +111,7 @@ Windows PowerShell 使用：
 - **热键变成了奇怪字符**：macOS 在设置里点按钮录制，不要手填 Option 产生的符号；Windows 填 `alt+e` 这类规范字符串。
 - **浮窗里复制没反应**：先点一下原文或译文，再使用平台复制快捷键。macOS 未选中时会复制当前栏全部文字。
 - **网页翻译失败**：内置源可能被限流。可换官方密钥源，或稍后再试。
+- **本机 Router 调用失败**：先确认 `http://127.0.0.1:8000/health` 返回正常，再用 `config-check` 核对两侧地址和模型；静态 `ready` 不代表 Router 或上游本次一定可用。
 
 划词会短暂改写剪贴板并在结束后恢复，翻译过程中不要同时复制其它内容。
 

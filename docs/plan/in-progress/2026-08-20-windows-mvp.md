@@ -59,5 +59,7 @@
 - 已在 Windows 11 x64 安装 Python 3.13.15 AMD64，并由 `scripts/install-windows.ps1` 创建项目 `.venv`、安装平台依赖和启动 `windows/launcher.pyw`。首次真机执行发现无 BOM UTF-8 脚本会被 Windows PowerShell 5.1 按本地代码页误读并解析失败；脚本改为带 BOM 的 UTF-8，并由安装合同测试固定。
 - 已确认托盘宿主进程使用项目 `.venv\Scripts\pythonw.exe`，第二实例以退出码 1 明确拒绝；Windows 设置窗口的翻译、OCR、语言与热键三页完成真机显示核对。Google 内置源真实文本翻译成功；未通过工具可靠操作托盘菜单或输入翻译窗口，不据此声明其交互验收完成。
 - 已安装 PaddleOCR 3.7.0 与 PaddlePaddle 3.3.0；Windows CPU 默认 oneDNN 路径真实预测失败后，适配器仅在 Windows 传入 `enable_mkldnn=False`。PP-OCRv6 tiny 本地图片识别和 OCR 后 Google 翻译均已成功，桌面首次加载提醒仍未验证。
-- Windows 配置、安装合同、平台 UI/基础设施、CLI、架构和文档定向测试 70 项通过；当前完整 Windows 离线套件 244 项通过、2 项仅因 PyObjC/macOS 专属路径跳过，`pip check` 与 Paddle CPU 自检通过。
-- 尚未完成 Windows 全局热键、剪贴板恢复/UIPI、圈选与真实区域截屏、单/多屏 DPI、托盘菜单、输入窗口结果展示、实时停止和 Paddle 桌面首次提醒。区域截图复验开始前桌面进入锁屏，按安全边界停止 UI 操作；本计划继续保持进行中，不能声明 Windows 桌面版整体可用。
+- 已把当前机器的项目 `.env` 配为本机 `llm-token-router`：翻译固定到低延迟文本模型并使用 120 秒有界超时，API 高级 OCR 固定到已实证支持图片的模型；配置回读显示两侧独立就绪且密钥均为 `unset`。正式 CLI 文本翻译、强制 API 高级 OCR 和 API 高级 OCR 后翻译均已成功，托盘宿主已重启并加载当前代码/配置。
+- 重启后的托盘宿主持有 `Alt+E`、`Alt+W`、`Alt+Q`：同会话重复 `RegisterHotKey` 对三组组合均返回 Windows 错误 1409，证明注册已生效。该证据不替代真实按键触发、选区复制、圈选或停止交互；应用控制在激活安全测试窗口前等待授权超时，没有发送键盘或文字。
+- Windows 配置、安装合同、平台 UI/基础设施、CLI、架构和文档定向测试 70 项通过；新增 Router 视觉合同后，当前完整 Windows 离线套件 245 项通过、2 项仅因 PyObjC/macOS 专属路径跳过，`pip check` 与 Paddle CPU 自检通过。
+- 尚未完成 Windows 热键实际触发、剪贴板恢复/UIPI、圈选与真实区域截屏、单/多屏 DPI、托盘菜单、输入窗口结果展示、实时停止和 Paddle 桌面首次提醒。先前区域截图复验遇到锁屏；本轮输入桌面恢复后，应用控制又在动作前等待授权超时，均未越过安全边界。本计划继续保持进行中，不能声明 Windows 桌面版整体可用。

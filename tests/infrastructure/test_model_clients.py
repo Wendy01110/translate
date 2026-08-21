@@ -46,7 +46,7 @@ def test_translator_uses_only_translate_settings(monkeypatch: pytest.MonkeyPatch
 
 def test_ocr_engine_uses_only_ocr_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OCR_BASE_URL", "https://ocr.example/v1")
-    monkeypatch.setenv("OCR_MODEL", "ocr-model")
+    monkeypatch.setenv("OCR_MODEL", "Unlimited-OCR")
     monkeypatch.setenv("OCR_API_KEY", "ocr-secret")
     monkeypatch.delenv("TRANSLATE_BASE_URL", raising=False)
     monkeypatch.delenv("TRANSLATE_MODEL", raising=False)
@@ -73,7 +73,7 @@ def test_ocr_engine_uses_only_ocr_settings(monkeypatch: pytest.MonkeyPatch) -> N
     assert result.image_mode == "gundam"
     assert captured["url"] == "https://ocr.example/v1/chat/completions"
     assert captured["authorization"] == "Bearer ocr-secret"
-    assert captured["body"]["model"] == "ocr-model"
+    assert captured["body"]["model"] == "Unlimited-OCR"
     assert captured["body"]["temperature"] == 0
     assert captured["body"]["max_tokens"] == 24000
     assert captured["body"]["skip_special_tokens"] is False
@@ -84,6 +84,40 @@ def test_ocr_engine_uses_only_ocr_settings(monkeypatch: pytest.MonkeyPatch) -> N
     assert content[0] == {"type": "text", "text": "document parsing."}
     assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")
     assert "ocr-secret" not in str(captured["body"])
+
+
+def test_generic_openai_vision_ocr_uses_standard_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OCR_BASE_URL", "http://127.0.0.1:8000/v1")
+    monkeypatch.setenv("OCR_MODEL", "auto")
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "Line one\nLine two"}}]},
+        )
+
+    engine = HttpOcrEngine(
+        OcrSettings(_env_file=None),
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    result = engine.recognize(b"png-bytes", "image/png")
+
+    assert result.status is JobStatus.SUCCESS
+    assert result.text == "Line one\nLine two"
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["model"] == "auto"
+    assert body["temperature"] == 0
+    assert body["max_tokens"] == 24000
+    assert "skip_special_tokens" not in body
+    assert "images_config" not in body
+    prompt = body["messages"][0]["content"][0]["text"]
+    assert "Return only the extracted text" in prompt
+    assert "Do not add commentary or Markdown fences" in prompt
 
 
 def test_unconfigured_translator_does_not_call_http() -> None:
