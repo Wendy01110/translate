@@ -76,64 +76,31 @@ class _PickerSession:
         self.finished = False
         self.rect: ScreenRect | None = None
         self._on_complete = on_complete
-        self._window = None
-        self._view = None
+        self._windows: list[object] = []
+        self._views: list[object] = []
         self._modal = False
 
     def begin(self) -> None:
-        from AppKit import (
-            NSApplication,
-            NSBackingStoreBuffered,
-            NSBorderlessWindowMask,
-            NSColor,
-            NSWindowCollectionBehaviorCanJoinAllSpaces,
-            NSWindowCollectionBehaviorFullScreenAuxiliary,
-        )
+        from AppKit import NSApplication
 
-        frame = _union_screen_frame()
-        window = (
-            _picker_panel_class()
-            .alloc()
-            .initWithContentRect_styleMask_backing_defer_(
-                frame,
-                NSBorderlessWindowMask,
-                NSBackingStoreBuffered,
-                False,
-            )
-        )
-        window.setLevel_(1024)
-        window.setOpaque_(False)
-        window.setBackgroundColor_(NSColor.colorWithCalibratedWhite_alpha_(0.0, 0.18))
-        window.setIgnoresMouseEvents_(False)
-        window.setAcceptsMouseMovedEvents_(True)
-        window.setReleasedWhenClosed_(False)
-        window.setHidesOnDeactivate_(False)
-        window.setCollectionBehavior_(
-            NSWindowCollectionBehaviorCanJoinAllSpaces
-            | NSWindowCollectionBehaviorFullScreenAuxiliary
-        )
-        view = (
-            _picker_view_class()
-            .alloc()
-            .initWithFrame_(window.contentView().bounds())
-        )
-        view.session = self
-        view.setAutoresizingMask_(18)
-        window.setContentView_(view)
+        panels = [_make_picker_panel(frame, self) for frame in _screen_frames()]
+        self._windows = [window for window, _view in panels]
+        self._views = [view for _window, view in panels]
         app = NSApplication.sharedApplication()
         app.activateIgnoringOtherApps_(True)
-        window.makeKeyAndOrderFront_(None)
-        window.makeFirstResponder_(view)
-        window.orderFrontRegardless()
-        self._window = window
-        self._view = view
+        for window in self._windows:
+            window.orderFrontRegardless()
+        primary_window = self._windows[0]
+        primary_view = self._views[0]
+        primary_window.makeKeyAndOrderFront_(None)
+        primary_window.makeFirstResponder_(primary_view)
 
     def run_modal(self) -> ScreenRect | None:
         from AppKit import NSApp
 
-        window = self._window
-        if window is None:
+        if not self._windows:
             return None
+        window = self._windows[0]
         self._modal = True
         try:
             NSApp.runModalForWindow_(window)
@@ -154,13 +121,13 @@ class _PickerSession:
             from AppKit import NSApp
 
             NSApp.stopModal()
-        window = self._window
-        view = self._view
-        self._window = None
-        self._view = None
-        if view is not None:
+        windows = self._windows
+        views = self._views
+        self._windows = []
+        self._views = []
+        for view in views:
             view.session = None
-        if window is not None:
+        for window in windows:
             window.orderOut_(None)
         callback = self._on_complete
         self._on_complete = None
@@ -168,26 +135,53 @@ class _PickerSession:
             callback(rect)
 
 
-def _union_screen_frame():
+def _screen_frames() -> tuple[object, ...]:
     from AppKit import NSMakeRect, NSScreen
 
     screens = list(NSScreen.screens() or [])
     if not screens:
-        return NSMakeRect(0.0, 0.0, 1440.0, 900.0)
-    frame = screens[0].frame()
-    min_x = float(frame.origin.x)
-    min_y = float(frame.origin.y)
-    max_x = min_x + float(frame.size.width)
-    max_y = min_y + float(frame.size.height)
-    for screen in screens[1:]:
-        item = screen.frame()
-        x = float(item.origin.x)
-        y = float(item.origin.y)
-        max_x = max(max_x, x + float(item.size.width))
-        max_y = max(max_y, y + float(item.size.height))
-        min_x = min(min_x, x)
-        min_y = min(min_y, y)
-    return NSMakeRect(min_x, min_y, max_x - min_x, max_y - min_y)
+        return (NSMakeRect(0.0, 0.0, 1440.0, 900.0),)
+    return tuple(screen.frame() for screen in screens)
+
+
+def _make_picker_panel(
+    frame: object,
+    session: _PickerSession,
+) -> tuple[object, object]:
+    from AppKit import (
+        NSBackingStoreBuffered,
+        NSBorderlessWindowMask,
+        NSColor,
+        NSWindowCollectionBehaviorCanJoinAllSpaces,
+        NSWindowCollectionBehaviorFullScreenAuxiliary,
+    )
+
+    window = (
+        _picker_panel_class()
+        .alloc()
+        .initWithContentRect_styleMask_backing_defer_(
+            frame,
+            NSBorderlessWindowMask,
+            NSBackingStoreBuffered,
+            False,
+        )
+    )
+    window.setLevel_(1024)
+    window.setOpaque_(False)
+    window.setBackgroundColor_(NSColor.colorWithCalibratedWhite_alpha_(0.0, 0.18))
+    window.setIgnoresMouseEvents_(False)
+    window.setAcceptsMouseMovedEvents_(True)
+    window.setReleasedWhenClosed_(False)
+    window.setHidesOnDeactivate_(False)
+    window.setCollectionBehavior_(
+        NSWindowCollectionBehaviorCanJoinAllSpaces
+        | NSWindowCollectionBehaviorFullScreenAuxiliary
+    )
+    view = _picker_view_class().alloc().initWithFrame_(window.contentView().bounds())
+    view.session = session
+    view.setAutoresizingMask_(18)
+    window.setContentView_(view)
+    return window, view
 
 
 def _picker_panel_class() -> type:
@@ -201,6 +195,9 @@ def _picker_panel_class() -> type:
             return True
 
         def canBecomeMainWindow(self) -> bool:
+            return True
+
+        def worksWhenModal(self) -> bool:
             return True
 
     _PickerPanel = AITranslateRegionPickerPanel
@@ -230,7 +227,14 @@ def _picker_view_class() -> type:
         def acceptsFirstResponder(self) -> bool:
             return True
 
+        def acceptsFirstMouse_(self, _event) -> bool:
+            return True
+
         def mouseDown_(self, event) -> None:
+            window = self.window()
+            if window is not None:
+                window.makeKeyWindow()
+                window.makeFirstResponder_(self)
             point = self._screen_point(event)
             self.dragging = True
             self.start_x = point[0]

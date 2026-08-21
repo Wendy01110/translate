@@ -2,7 +2,7 @@
 
 > 记录日期：2026-08-21（Asia/Shanghai）
 >
-> 计划：[屏幕实时 OCR 翻译](../../plan/in-progress/2026-08-20-live-screen-ocr.md)、[Windows 桌面版 MVP](../../plan/in-progress/2026-08-20-windows-mvp.md)、[本地与 API 四层 OCR 分流](../../plan/in-progress/2026-08-20-tiered-ocr-routing.md)
+> 计划：[屏幕实时 OCR 翻译](../../plan/completed/2026-08-20-live-screen-ocr.md)、[Windows 桌面版 MVP](../../plan/in-progress/2026-08-20-windows-mvp.md)、[本地与 API 四层 OCR 分流](../../plan/in-progress/2026-08-20-tiered-ocr-routing.md)
 
 ## 本次边界
 

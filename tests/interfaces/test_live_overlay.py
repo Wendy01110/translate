@@ -1,3 +1,6 @@
+import sys
+from types import SimpleNamespace
+
 import ai_translate.interfaces.region_picker as region_picker_module
 from ai_translate.core.models import JobKind, JobStatus, ScreenRect, TranslateJob
 from ai_translate.interfaces.live_overlay import (
@@ -98,3 +101,85 @@ def test_region_picker_start_returns_before_selection_and_can_cancel(
     assert completed == []
     picker.cancel()
     assert completed == [None]
+
+
+def test_region_picker_preserves_one_frame_per_screen(monkeypatch) -> None:
+    frames = ("primary", "secondary")
+    screens = tuple(SimpleNamespace(frame=lambda frame=frame: frame) for frame in frames)
+    monkeypatch.setitem(
+        sys.modules,
+        "AppKit",
+        SimpleNamespace(
+            NSMakeRect=lambda *values: values,
+            NSScreen=SimpleNamespace(screens=lambda: screens),
+        ),
+    )
+
+    assert region_picker_module._screen_frames() == frames
+
+
+def test_region_picker_session_covers_and_closes_every_screen(monkeypatch) -> None:
+    frames = ("primary", "secondary")
+    created = []
+
+    class _FakeWindow:
+        def __init__(self) -> None:
+            self.front_count = 0
+            self.key_count = 0
+            self.first_responder = None
+            self.out_count = 0
+
+        def orderFrontRegardless(self) -> None:
+            self.front_count += 1
+
+        def makeKeyAndOrderFront_(self, _sender) -> None:
+            self.key_count += 1
+
+        def makeFirstResponder_(self, view) -> None:
+            self.first_responder = view
+
+        def orderOut_(self, _sender) -> None:
+            self.out_count += 1
+
+    class _FakeView:
+        def __init__(self, session) -> None:
+            self.session = session
+
+    class _FakeApplication:
+        def __init__(self) -> None:
+            self.activated = False
+
+        def activateIgnoringOtherApps_(self, value) -> None:
+            self.activated = bool(value)
+
+    app = _FakeApplication()
+
+    def make_panel(frame, session):
+        window = _FakeWindow()
+        view = _FakeView(session)
+        created.append((frame, window, view))
+        return window, view
+
+    monkeypatch.setattr(region_picker_module, "_screen_frames", lambda: frames)
+    monkeypatch.setattr(region_picker_module, "_make_picker_panel", make_panel)
+    monkeypatch.setitem(
+        sys.modules,
+        "AppKit",
+        SimpleNamespace(
+            NSApplication=SimpleNamespace(sharedApplication=lambda: app),
+        ),
+    )
+    session = region_picker_module._PickerSession()
+
+    session.begin()
+
+    assert [frame for frame, _window, _view in created] == list(frames)
+    assert app.activated is True
+    assert [window.front_count for _frame, window, _view in created] == [1, 1]
+    assert [window.key_count for _frame, window, _view in created] == [1, 0]
+    assert created[0][1].first_responder is created[0][2]
+
+    session.complete(None)
+
+    assert [window.out_count for _frame, window, _view in created] == [1, 1]
+    assert [view.session for _frame, _window, view in created] == [None, None]

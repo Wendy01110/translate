@@ -10,12 +10,11 @@
 - 翻译与 OCR 通过独立环境变量配置；OCR 内部分为本地普通、本地高级、API 普通和 API 高级四层。翻译默认 Google 内置网页源（免密钥），也可选用 Bing/DeepL 内置或官方/OpenAI 兼容源；只读一个配置文件；`config-check` 回读路径和分层静态状态，但不调用模型或上游。
 - macOS OCR 自动顺序是 Vision、可选 PP-OCRv6、OCR.space、API 高级视觉模型；Windows 暂无本地普通层，从可选 PP-OCRv6 开始。PaddleOCR 未安装时跳过；macOS PP-OCRv6 small 与 Windows PP-OCRv6 tiny 均已完成本地实图验证，Windows 关闭 oneDNN 后使用普通 Paddle CPU 后端。API 普通只尝试单张 1 MB 内图片，失败、超限或多页时转 API 高级；Unlimited-OCR 保留专用请求合同，其它模型使用标准 OpenAI 视觉消息。CLI 支持本地图片和平台圈选截屏。
 - 划词和 OCR 可通过 `listen` 热键或桌面 App 触发；macOS 使用菜单栏，Windows 候选使用系统托盘。输入窗口、设置、普通浮窗和实时字幕条复用同一业务用例，不在界面层另写翻译语义。
-- 用户在 macOS 本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。屏幕实时 OCR 已改为异步圈选和约 0.8 秒目标起点间隔，待重启 App 复验。Windows 已验证源码安装、托盘进程、单实例、设置三页、三组全局热键注册、真实本机 Router 文本翻译、Router 高级 OCR、Router OCR 后翻译和本地图片 PaddleOCR；热键实际触发、剪贴板恢复、圈选截屏、多屏/DPI、实时停止和托盘菜单交互仍未验收，不能声明 Windows 桌面版整体可用。OCR.space 公共测试请求返回 HTTP 503，API 普通层仍无成功真测。历史尚未实施。当前没有开放 Issue。
-- 正在收尾 [屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)，并实施 [Windows 桌面版 MVP](./plan/in-progress/2026-08-20-windows-mvp.md) 与 [本地/API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)；系统音频转写仍待进行。下一档其它产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的复制译文与有界历史。
+- 用户在 macOS 本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。屏幕实时 OCR 已完成异步圈选、约 0.8 秒目标起点间隔、双屏副屏圈选、动态更新和停止真机验收。Windows 已验证源码安装、托盘进程、单实例、设置三页、三组全局热键注册、真实本机 Router 文本翻译、Router 高级 OCR、Router OCR 后翻译和本地图片 PaddleOCR；热键实际触发、剪贴板恢复、圈选截屏、多屏/DPI、实时停止和托盘菜单交互仍未验收，不能声明 Windows 桌面版整体可用。OCR.space 公共测试请求返回 HTTP 503，API 普通层仍无成功真测。历史尚未实施。当前没有开放 Issue。
+- 当前实施 [Windows 桌面版 MVP](./plan/in-progress/2026-08-20-windows-mvp.md) 与 [本地/API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)；系统音频转写仍待进行。下一档其它产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的复制译文与有界历史。
 
 ## 当前工作
 
-- [屏幕实时 OCR 翻译](./plan/in-progress/2026-08-20-live-screen-ocr.md)
 - [Windows 桌面版 MVP](./plan/in-progress/2026-08-20-windows-mvp.md)
 - [本地与 API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)
 
