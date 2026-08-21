@@ -78,4 +78,5 @@
 - Windows 正式 CLI 对三行中英文测试图完整识别，缓存模型进程冷启动用时 3.363 秒；纯英文测试图经本地 OCR 后调用 Google 内置翻译源，3.869 秒返回中文。该结果证明 Windows 本地高级与 OCR 后翻译链路可用，不替代真实截图、复杂版面和普遍精度验收。
 - PaddleOCR、四层路由、composition、配置、设置和 CLI 定向测试已通过；其中首次加载提醒相关的 Paddle、composition、overlay 与 App 定向测试 31 项通过，Python 3.13 环境下完整离线套件 249 项通过，`pip check` 与 `git diff --check` 通过。
 - macOS App 已重新构建并签名，arm64 启动器链接 Homebrew Python 3.13，嵌入的新项目 site-packages 路径、Info.plist 和代码签名检查通过；打开后进程实际从新环境加载并保持运行。
-- Windows 项目 `.env` 已保持 `OCR_ENGINE=auto` 与 PP-OCRv6 tiny，并把 API 高级独立配置到本机 `llm-token-router` 的已验证视觉模型。项目客户端真实识别两行合成图时只返回原文；正式 CLI 强制 API 高级 OCR 和 API 高级 OCR 后 Router 翻译均成功。OCR.space 使用官方公共 `helloworld` 测试 key 的两次合成图请求均到达服务但返回 HTTP 503，未把公共 key 写入 `.env`，因此 API 普通仍没有成功真测。剩余验证是两端桌面首次提醒、Windows 真实截屏和 OCR.space 在可用额度下的成功调用。
+- Windows 项目 `.env` 已保持 `OCR_ENGINE=auto` 与 PP-OCRv6 tiny，并把 API 高级独立配置到本机 `llm-token-router` 的已验证视觉模型。项目客户端真实识别两行合成图时只返回原文；正式 CLI 强制 API 高级 OCR 和 API 高级 OCR 后 Router 翻译均成功。OCR.space 使用官方公共 `helloworld` 测试 key 的前两次 Engine 2 请求返回 HTTP 503，停止重试后在后续独立复试中 1.969 秒准确识别 `OCR SPACE WINDOWS 2026`；公共 key 始终未写入 `.env`，API 普通层现已有成功真测。
+- Windows 主屏固定区域截图经 PP-OCRv6 tiny 精确识别三行固定文本；双屏虚拟桌面的副屏负坐标、DPI 96 客户区也准确识别 `SECOND MONITOR OCR 2026`。两个新引擎实例的首次加载回调均各触发一次；剩余验证是 macOS/Windows 桌面端首次提醒的实际显示，以及 Windows 无标题圈选层的人工鼠标拖拽，不再缺 API 两层或真实截屏证据。

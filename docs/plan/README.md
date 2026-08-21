@@ -11,8 +11,8 @@
 
 ## 进行中
 
-- [Windows 桌面版 MVP](./in-progress/2026-08-20-windows-mvp.md)：Windows 11 x64 源码安装、托盘进程、设置、单实例、三组热键注册和本机 Router CLI 核心链路已完成首轮真机验证；等待热键实际触发、圈选、多屏/DPI 与实时停止验收。
-- [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：macOS PP-OCRv6 small、Windows PP-OCRv6 tiny 和 Router API 高级实图已通过；等待 Windows 桌面提醒/截屏与 OCR.space 成功真测。
+- [Windows 桌面版 MVP](./in-progress/2026-08-20-windows-mvp.md)：Windows 11 x64 源码安装、划词/剪贴板恢复、三组热键、固定区域截屏、双屏 DPI 和 Router 核心链路已完成真机验证；等待实际鼠标圈选、托盘菜单、输入窗口和字幕条关闭验收。
+- [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：macOS PP-OCRv6 small、Windows 双屏 PP-OCRv6 tiny、OCR.space API 普通和 Router API 高级均有成功真测；等待两端桌面首次提醒的最终交互复验。
 
 ## 待进行
 
