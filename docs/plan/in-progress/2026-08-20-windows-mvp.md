@@ -4,7 +4,7 @@
 >
 > 创建日期：2026-08-20（Asia/Shanghai）
 >
-> 更新日期：2026-08-21（Asia/Shanghai）
+> 更新日期：2026-09-01（Asia/Shanghai）
 
 ## 目标
 
@@ -56,6 +56,7 @@
 
 - 已完成现状核对、Windows MVP 边界和稳定设计；现有 macOS 图标/构建 WIP 未被修改或纳入。
 - 已完成平台组合、Windows Unicode 文本剪贴板、`SendInput` 模拟复制、`RegisterHotKey`、虚拟桌面圈选、Pillow 截屏、Tk 普通浮窗/字幕条/设置/输入窗口、pystray 托盘、单实例和 `%APPDATA%` 配置路径。
+- 普通结果浮窗已改为每次查询时来到前面、默认不持续置顶，并提供「置顶/取消置顶」按钮；实时字幕条继续保持置顶。当前只有离线层级合同验证，Windows 真机的前后层级与按钮交互仍归入桌面验收。
 - 已在 Windows 11 x64 安装 Python 3.13.15 AMD64，并由 `scripts/install-windows.ps1` 创建项目 `.venv`、安装平台依赖和启动 `windows/launcher.pyw`。首次真机执行发现无 BOM UTF-8 脚本会被 Windows PowerShell 5.1 按本地代码页误读并解析失败；脚本改为带 BOM 的 UTF-8，并由安装合同测试固定。
 - 已确认托盘宿主进程使用项目 `.venv\Scripts\pythonw.exe`，第二实例以退出码 1 明确拒绝；Windows 设置窗口的翻译、OCR、语言与热键三页完成真机显示核对。Google 内置源真实文本翻译成功；未通过工具可靠操作托盘菜单或输入翻译窗口，不据此声明其交互验收完成。
 - 已安装 PaddleOCR 3.7.0 与 PaddlePaddle 3.3.0；Windows CPU 默认 oneDNN 路径真实预测失败后，适配器仅在 Windows 传入 `enable_mkldnn=False`。PP-OCRv6 tiny 本地图片识别和 OCR 后 Google 翻译均已成功，桌面首次加载提醒仍未验证。

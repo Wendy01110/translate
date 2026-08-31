@@ -17,7 +17,12 @@ from ai_translate.interfaces.live_overlay import (
     format_live_overlay,
     format_live_status,
 )
-from ai_translate.interfaces.overlay import OverlayContent, format_overlay, format_status
+from ai_translate.interfaces.overlay import (
+    OverlayContent,
+    format_overlay,
+    format_status,
+    overlay_pin_button_title,
+)
 from ai_translate.interfaces.region_picker import rect_from_drag
 
 _WM_HOTKEY = 0x0312
@@ -399,6 +404,8 @@ class WindowsOverlayPresenter:
         self._source: object | None = None
         self._translation: object | None = None
         self._footnote: object | None = None
+        self._pin_button: object | None = None
+        self._pinned = False
 
     def show_status(self, message: str, source: str | None = None) -> None:
         content = format_status(message, source=source or "")
@@ -419,13 +426,31 @@ class WindowsOverlayPresenter:
         _replace_text(self._translation, content.translation)
         self._footnote.configure(text=content.footnote)
         self._window.deiconify()
+        _set_windows_overlay_pinned(self._window, pinned=True)
         self._window.lift()
+        if not self._pinned:
+            self._runtime.root.after_idle(self._restore_pin_state)
         if created:
             _center_window(self._window)
             self._window.focus_force()
 
+    def _toggle_pin(self) -> None:
+        self._pinned = not self._pinned
+        self._restore_pin_state()
+        if self._window is not None:
+            self._window.lift()
+
+    def _restore_pin_state(self) -> None:
+        if self._window is None or self._pin_button is None:
+            return
+        _set_windows_overlay_pinned(self._window, pinned=self._pinned)
+        self._pin_button.configure(
+            text=overlay_pin_button_title(pinned=self._pinned)
+        )
+
     def _create(self) -> None:
         import tkinter as tk
+        from tkinter import ttk
         from tkinter.scrolledtext import ScrolledText
 
         window = tk.Toplevel(self._runtime.root)
@@ -433,26 +458,67 @@ class WindowsOverlayPresenter:
         window.title("AI Translate")
         window.geometry("560x430")
         window.minsize(420, 320)
-        window.attributes("-topmost", True)
         window.protocol("WM_DELETE_WINDOW", window.withdraw)
         window.columnconfigure(0, weight=1)
+        window.columnconfigure(1, weight=0)
         window.rowconfigure(1, weight=1)
         window.rowconfigure(3, weight=1)
         title = tk.Label(window, anchor="w", font=("Segoe UI", 13, "bold"))
         title.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 4))
+        pin_button = ttk.Button(
+            window,
+            text=overlay_pin_button_title(pinned=self._pinned),
+            command=self._toggle_pin,
+            width=8,
+        )
+        pin_button.grid(row=0, column=1, sticky="e", padx=(0, 14), pady=(10, 2))
         source = ScrolledText(window, wrap="word", height=6, font=("Segoe UI", 11))
-        source.grid(row=1, column=0, sticky="nsew", padx=14, pady=4)
+        source.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="nsew",
+            padx=14,
+            pady=4,
+        )
         translation_label = tk.Label(window, text="译文", anchor="w")
-        translation_label.grid(row=2, column=0, sticky="ew", padx=14, pady=(8, 0))
+        translation_label.grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=14,
+            pady=(8, 0),
+        )
         translation = ScrolledText(window, wrap="word", height=7, font=("Segoe UI", 12))
-        translation.grid(row=3, column=0, sticky="nsew", padx=14, pady=4)
+        translation.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="nsew",
+            padx=14,
+            pady=4,
+        )
         footnote = tk.Label(window, anchor="w", foreground="#666666")
-        footnote.grid(row=4, column=0, sticky="ew", padx=14, pady=(2, 10))
+        footnote.grid(
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=14,
+            pady=(2, 10),
+        )
         self._window = window
         self._title = title
         self._source = source
         self._translation = translation
         self._footnote = footnote
+        self._pin_button = pin_button
+        self._restore_pin_state()
+
+
+def _set_windows_overlay_pinned(window: object, *, pinned: bool) -> None:
+    window.attributes("-topmost", pinned)
 
 
 class WindowsLiveOverlayPresenter:

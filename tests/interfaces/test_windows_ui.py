@@ -1,7 +1,10 @@
 import pytest
 
 from ai_translate.core.models import ScreenRect
+from ai_translate.interfaces.overlay import OverlayContent
 from ai_translate.interfaces.windows_desktop import (
+    WindowsOverlayPresenter,
+    _set_windows_overlay_pinned,
     windows_hotkey_codes,
     windows_hotkey_label,
     windows_live_overlay_rect,
@@ -55,6 +58,115 @@ def test_windows_live_overlay_moves_above_region_at_bottom() -> None:
     )
     assert rect.y + rect.height < anchor.y
     assert rect.x + rect.width <= 1920
+
+
+def test_windows_overlay_is_only_topmost_when_pinned() -> None:
+    class _Window:
+        def __init__(self) -> None:
+            self.topmost = None
+
+        def attributes(self, name: str, value: object) -> None:
+            assert name == "-topmost"
+            self.topmost = value
+
+    window = _Window()
+
+    _set_windows_overlay_pinned(window, pinned=False)
+    assert window.topmost is False
+
+    _set_windows_overlay_pinned(window, pinned=True)
+    assert window.topmost is True
+
+
+def test_windows_overlay_raises_then_restores_or_keeps_pin_state() -> None:
+    class _Root:
+        def __init__(self) -> None:
+            self.idle_callbacks = []
+
+        def after_idle(self, callback) -> None:
+            self.idle_callbacks.append(callback)
+
+    class _Runtime:
+        def __init__(self) -> None:
+            self.root = _Root()
+
+    class _Window:
+        def __init__(self) -> None:
+            self.topmost_events = []
+            self.front_count = 0
+            self.visible = False
+            self.window_title = ""
+
+        def title(self, value: str) -> None:
+            self.window_title = value
+
+        def deiconify(self) -> None:
+            self.visible = True
+
+        def attributes(self, name: str, value: object) -> None:
+            assert name == "-topmost"
+            self.topmost_events.append(value)
+
+        def lift(self) -> None:
+            self.front_count += 1
+
+    class _Label:
+        def __init__(self) -> None:
+            self.text = ""
+
+        def configure(self, *, text: str) -> None:
+            self.text = text
+
+    class _Text:
+        def __init__(self) -> None:
+            self.value = ""
+            self.state = "disabled"
+
+        def configure(self, *, state: str) -> None:
+            self.state = state
+
+        def delete(self, _start: str, _end: str) -> None:
+            self.value = ""
+
+        def insert(self, _start: str, value: str) -> None:
+            self.value = value
+
+    runtime = _Runtime()
+    presenter = WindowsOverlayPresenter(runtime)
+    window = _Window()
+    pin_button = _Label()
+    presenter._window = window
+    presenter._title = _Label()
+    presenter._source = _Text()
+    presenter._translation = _Text()
+    presenter._footnote = _Label()
+    presenter._pin_button = pin_button
+    content = OverlayContent(
+        title="划词",
+        source="Hello",
+        translation="你好",
+        footnote="Google 内置",
+    )
+
+    presenter._show(content)
+
+    assert window.topmost_events == [True]
+    assert window.front_count == 1
+    assert len(runtime.root.idle_callbacks) == 1
+    runtime.root.idle_callbacks.pop()()
+    assert window.topmost_events == [True, False]
+    assert pin_button.text == "置顶"
+
+    presenter._toggle_pin()
+    assert presenter._pinned is True
+    assert window.topmost_events[-1] is True
+    assert pin_button.text == "取消置顶"
+
+    window.topmost_events.clear()
+    runtime.root.idle_callbacks.clear()
+    presenter._show(content)
+    assert window.topmost_events == [True]
+    assert runtime.root.idle_callbacks == []
 
 
 def test_windows_settings_do_not_offer_unavailable_vision_only_mode() -> None:
