@@ -16,6 +16,7 @@
 
 ## 待进行
 
+- [Windows 桌面 UI 优化](./pending/2026-09-01-windows-ui-optimization.md)：先完成现有交互基线，再用 Tk/ttk 统一普通翻译工作区，并分阶段优化设置、高 DPI、圈选、实时字幕条与托盘。
 - [TTime 对照后的后续能力](./pending/2026-08-19-ttime-inspired-follow-on.md)：历史、工具栏和剪贴板监听等；菜单栏 App 与输入能力已实施，macOS 输入入口现与划词/OCR 共用翻译工作区。
 - [视频字幕实时识别](./pending/2026-08-19-live-video-subtitles.md)：路径 A 的屏幕实时 OCR 已完成；本文件只留系统音频转写，本轮不实施。
 

@@ -14,7 +14,7 @@
 - 统一「翻译」窗口默认 720×520，宽屏双栏、窄屏上下排列；目标语言与右侧三个动作共用一行，来源脚注使用中间剩余空间，省下的语言专用行已扩展给文本区。选项复用设置页的中文/英语/日语/韩语；切换只更新当前 `DesktopListener`，不自动请求、不直接写配置；设置保存后会反向同步栏位，实时 OCR 的去重记忆也会重置以使用新目标。原生快照已覆盖选择、忙碌禁用和结果恢复。原独立 macOS 输入窗口实现不再由 `app.py` 组合，Windows Tk 输入窗口保持不变。
 - macOS/Windows 普通结果浮窗已支持「置顶/取消置顶」进程内切换：macOS 新结果按鼠标所在显示器居中，未置顶时可进入该屏幕的全屏 Space，但失去焦点后直接收起并在下次查询重新弹出；置顶后加入所有 Space 且不收起。实时字幕条继续固定置顶。macOS 已完成双屏 Fake 原生层级/集合策略验证，用户重开后也确认副屏全屏弹出、失焦收起和再次弹出符合预期；Windows 置顶按钮与层级序列仍只有离线合同证据。
 - 用户在 macOS 本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。屏幕实时 OCR 已完成异步圈选、约 0.8 秒目标起点间隔、双屏副屏圈选、动态更新和停止真机验收。Windows 已验证源码安装、托盘进程、单实例、设置三页、`Alt+E` 真实选区复制/Router 翻译/剪贴板恢复、`Alt+W` 与 `Alt+Q` 打开圈选层、`Alt+Q` 再次触发取消、主屏固定区域 OCR 后翻译、双屏负坐标/DPI 截屏 OCR、实时固定帧显示/去重/更新/停止，以及 OCR.space Engine 2 与 Router API 高级 OCR；无标题全屏圈选层无法由当前安全自动化工具接管鼠标，托盘菜单、输入窗口、Paddle 首次提醒的桌面显示和实际字幕条关闭仍未验收，不能声明 Windows 桌面版整体完成。历史尚未实施。当前没有开放 Issue。
-- 当前实施 [Windows 桌面版 MVP](./plan/in-progress/2026-08-20-windows-mvp.md) 与 [本地/API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)；系统音频转写仍待进行。下一档其它产品能力见 [待进行](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的有界历史、划词工具栏与可选剪贴板监听。
+- 当前实施 [Windows 桌面版 MVP](./plan/in-progress/2026-08-20-windows-mvp.md) 与 [本地/API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)；Windows 视觉与交互统一已单列为 [待进行计划](./plan/pending/2026-09-01-windows-ui-optimization.md)，需先闭合当前交互基线再实施。系统音频转写仍待进行；其它产品能力见 [TTime 后续计划](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的有界历史、划词工具栏与可选剪贴板监听。
 
 ## 当前工作
 
