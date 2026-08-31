@@ -61,3 +61,4 @@
 - 任务闭合时定向普通浮窗/字幕条/Windows UI 测试 47 项通过，完整离线套件 272 项通过，`git diff --check` 通过；2026-09-01 在合并 macOS 统一工作区与 Windows 置顶候选后的当前分支复验，定向测试 56 项、完整离线套件 284 项通过，`git diff --check` 继续通过。
 - macOS 沙箱外 Fake 原生验证实际识别到 2 块屏幕，确认窗口按鼠标所在屏幕居中，并走通 `normal/current-space/full-screen-auxiliary → resign/order-out → refocus → floating/all-spaces/full-screen-auxiliary`；用户随后重开 App，确认副屏全屏弹出、未置顶失焦收起和再次划词重新弹出均符合预期。Windows 真机前后层级和按钮交互仍归入 Windows MVP 桌面验收。
 - 根 README、架构、macOS/Windows 稳定设计、Windows MVP 进度、文档入口、计划索引和 [完成日志](../../logs/202608/2026-08-31-result-overlay-pin-toggle.md) 已同步；任务闭合时未重启 App、调用真实上游、提交、推送或发布，提交与推送由后续独立授权执行。
+- 2026-09-01 经后续独立授权，本实现已在保留远端 Windows 真机验收提交 `74172b3` 的前提下 rebase 为 `c0fa082`，并与 macOS 统一工作区提交 `74f2e9b`、Windows UI 后续计划提交 `a7d82cb` 一起正常推送到 `origin/main`；未使用强推，Windows 置顶按钮真机验收、部署和发布仍未执行。
