@@ -1,6 +1,6 @@
 # 计划状态索引
 
-> 更新时间：2026-08-21（Asia/Shanghai）
+> 更新时间：2026-08-31（Asia/Shanghai）
 
 本页逐条索引全部进行中、待进行和暂时跳过计划，但只保留最近 5 项已完成计划。它不替代 `docs/README.md` 的默认入口，也不复制计划正文。状态变化时移动原计划并同步全部引用：
 
@@ -16,7 +16,7 @@
 
 ## 待进行
 
-- [TTime 对照后的后续能力](./pending/2026-08-19-ttime-inspired-follow-on.md)：历史、工具栏和剪贴板监听等；菜单栏 App 和输入框已拆出单独实施。
+- [TTime 对照后的后续能力](./pending/2026-08-19-ttime-inspired-follow-on.md)：历史、工具栏和剪贴板监听等；菜单栏 App 与输入能力已实施，macOS 输入入口现与划词/OCR 共用翻译工作区。
 - [视频字幕实时识别](./pending/2026-08-19-live-video-subtitles.md)：路径 A 的屏幕实时 OCR 已完成；本文件只留系统音频转写，本轮不实施。
 
 ## 暂时跳过
@@ -25,10 +25,9 @@
 
 ## 最近完成
 
+- [普通结果浮窗 UI 纠偏](./completed/2026-08-31-result-overlay-ui-correction.md)：macOS 菜单输入、划词和单次 OCR 已统一为同一个翻译工作区，三种原文均可编辑并可直接再译，译文只读；左上标题位已替换为目标语言栏，翻译、图钉、复制、焦点与同窗复用已完成 Fake AppKit 验证。
+- [输入翻译窗口 UI 更新](./completed/2026-08-31-input-window-ui-refresh.md)：原独立 macOS 输入窗口曾按高保真视觉稿完成；后续已由统一「翻译」工作区取代，菜单入口继续保留但不再创建第二个窗口。
 - [屏幕实时 OCR 翻译](./completed/2026-08-20-live-screen-ocr.md)：macOS 双屏圈选、动态翻译更新和再次热键停止已完成真机验收。
 - [macOS 菜单栏 App](./completed/2026-08-19-macos-menu-bar-app.md)：菜单栏 `.app` 已能构建安装；用户本机试用报告基本可用。
-- [划词翻译与 OCR 翻译首期实现](./completed/2026-08-19-selection-and-ocr-implementation.md)：热键划词、热键 OCR 和浮窗已落地；用户本机试用报告基本可用。
-- [默认内置翻译源与输入框翻译](./completed/2026-08-20-default-provider-and-input-box.md)：默认 `google_web`；菜单「输入翻译…」复用现有翻译端口。
-- [内置网页翻译源](./completed/2026-08-19-web-translate-sources.md)：Google/Bing/DeepL 免密钥网页源；Google 补 `dt=t`，Bing 改页面 token。
 
 完整已完成计划见 [completed/](./completed/)，对应完成日志见 [../logs/](../logs/)。默认索引不逐条重复历史记录；需要追溯旧状态时，再按日期打开对应文件或查看 Git 历史。

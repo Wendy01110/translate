@@ -64,12 +64,14 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
         accessibility_trusted,
         request_accessibility_prompt,
     )
-    from ai_translate.interfaces.input_box import InputTranslatePresenter
     from ai_translate.interfaces.live_overlay import LiveOverlayPresenter
     from ai_translate.interfaces.menubar import cocoa_app_loop, run_status_app
     from ai_translate.interfaces.overlay import OverlayPresenter
     from ai_translate.interfaces.region_picker import RegionPicker
-    from ai_translate.interfaces.settings import SettingsPresenter
+    from ai_translate.interfaces.settings import (
+        TARGET_LANG_OPTIONS,
+        SettingsPresenter,
+    )
 
     start_listener = None
     start_app = None
@@ -100,6 +102,12 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
             capture_rect=RectCapture().capture_rect,
             live_presenter=live_ui,
         )
+        presenter.set_translate(listener.handle_typed_text)
+        presenter.configure_target_languages(
+            TARGET_LANG_OPTIONS,
+            current=settings.translate.target_lang,
+            on_change=listener.set_target_lang,
+        )
         live_ui.set_stop(listener.stop_live)
         if "app" in args:
             def save_preferences(prefs: AppPreferences) -> None:
@@ -117,18 +125,18 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
                     ocr_hotkey=refreshed.hotkey.ocr,
                     live_hotkey=refreshed.hotkey.live_ocr,
                 )
+                presenter.set_target_language(refreshed.translate.target_lang)
 
             settings_ui = SettingsPresenter(
                 load=lambda: Settings.load().preferences(),
                 save=save_preferences,
             )
-            input_ui = InputTranslatePresenter(translate=listener.handle_typed_text)
 
             def start_app_run() -> int:
                 return run_status_app(
                     listener,
                     open_settings=settings_ui.show,
-                    open_input=input_ui.show,
+                    open_input=presenter.show_input,
                 )
 
             start_app = start_app_run

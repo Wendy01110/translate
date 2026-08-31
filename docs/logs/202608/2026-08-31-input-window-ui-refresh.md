@@ -1,0 +1,49 @@
+# 输入翻译窗口 UI 更新完成日志
+
+> 完成日期：2026-08-31（Asia/Shanghai）
+>
+> 计划：[输入翻译窗口 UI 更新](../../plan/completed/2026-08-31-input-window-ui-refresh.md)
+
+## 任务边界
+
+依据 [高保真视觉稿](../../assets/ui/2026-08-31-input-translation-concept.png) 更新 macOS 输入翻译窗口；保留原有翻译端口、异步线程、主线程回写、结果契约、菜单入口和快捷键，不修改 Windows、设置、普通浮窗、实时字幕条或真实 Provider 行为。
+
+## 完成内容
+
+- 默认内容区从 520×480 调整为 720×520；宽度不小于 640 时使用原文/译文双栏，缩窄后自动切为上下排列。
+- 增加真白窗口背景、冷灰编辑区、原文蓝紫焦点边框、译文冷灰边框、系统字体层级、原文占位、译文空状态、底部分隔线、状态区、快捷键提示和蓝紫主按钮。
+- `input_window_layout()` 把宽/窄几何提取为纯函数，窗口 delegate 在缩放时统一重排；两个编辑区继续可滚动，原文继续可编辑，译文继续只读。
+- 按钮点击和 `Command+Return` 继续进入同一 `request_translate()`；忙碌门禁、后台执行、主线程回写、成功/失败格式化和重复打开不重新居中的行为未改。
+- 根 README、桌面热键稳定设计、文档入口、计划索引和计划状态已同步；没有新增依赖、配置、外部接口或产品能力。
+
+## 视觉对照账本
+
+| 对照点 | 视觉稿证据 | AppKit 渲染证据 | 结论 |
+| --- | --- | --- | --- |
+| 文案与层级 | `输入翻译`、辅助说明、原文/译文、两个空状态和单一翻译动作 | 常量合同测试固定全部可见静态文案，720×520 快照无额外文案 | 一致 |
+| 首屏布局 | 真白背景下的双栏工作区和底部动作区 | 720×520 原生内容快照为等宽双栏，按钮/快捷键固定在底部 | 一致 |
+| 响应式延续 | 需要窄窗口继续可用 | 440×520 快照改为原文在上、译文在下，按钮和状态区仍可见 | 一致 |
+| 色彩与容器 | 冷灰编辑区、蓝紫输入边框/按钮、冷灰译文边框、10px 圆角 | 首轮系统灰按钮偏差已修正；最终快照显示蓝紫按钮和输入边框、冷灰译文边框 | 一致 |
+| 字体与留白 | 22px 标题、13px 辅助/标签、15px 正文、克制留白 | 原生系统字体按对应字号/字重渲染，标题、标签、正文和底栏无裁切 | 一致 |
+| 核心交互 | 输入后执行翻译并在右栏显示结果 | Fake 按钮目标走后台线程和主线程回写，成功译文截图可见 | 通过 |
+
+视觉稿包含标准 macOS 标题栏；最终自动快照使用 `contentView` 原生 720×520 内容区，因此图片本身不含窗口阴影和交通灯。实现仍保留可关闭、可缩放的标准 `NSWindow`，隐藏标题文字并使用透明标题栏；这属于取证范围差异，不是界面结构偏差。
+
+## 验证结果
+
+- `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/interfaces/test_input_box.py`：9 passed。
+- `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/interfaces/test_input_box.py tests/interfaces/test_menubar.py tests/test_app.py`：16 passed。
+- `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider`：260 passed in 0.70s。
+- Fake AppKit 原生快照：720×520 空状态、440×520 紧凑状态和 720×520 成功结果均已生成并使用 `view_image` 检查；视觉稿与最终宽屏快照已在同一轮复核。
+- `git diff --check`：通过。
+
+## 限制与未执行项
+
+- Browser/Playwright 不适用于原生 AppKit 窗口；桌面辅助绑定完整窗口时因两个 Python 宿主共享 bundle 标识而超时，已停止重试，未把该失败写成 UI 失败。
+- 没有调用真实翻译或 OCR，没有读取剪贴板、选区或业务截图，没有安装依赖，也没有修改 Windows UI。
+- 本实现、测试与文档已获用户授权纳入本次 Git 提交；没有推送、发布或部署。工作区中的 Windows 浮窗置顶等并行 WIP 已保留且未纳入本任务结论。
+
+## 后续状态
+
+- 用户后续要求 macOS 输入翻译、划词和单次 OCR 统一为当前划词样式。菜单「输入翻译…」现改为打开同一个 `OverlayPresenter` / `NSPanel`，本日志前述独立输入窗口截图只保留为历史设计证据，不再代表当前运行时组合。
+- 原 `interfaces/input_box.py` WIP 未删除，Windows Tk 输入窗口也未修改；当前 macOS 统一工作区证据见 [普通结果浮窗 UI 纠偏完成日志](./2026-08-31-result-overlay-ui-correction.md)。

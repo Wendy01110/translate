@@ -76,7 +76,7 @@ API 高级：
 
 OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `listen` 和桌面 App 注册，`config-check` 只回读字符串。macOS 使用 Option/Command 显示，Windows 使用 Alt/Win 显示；配置仍保存统一规范化字符串。
 
-桌面「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_STANDARD_API_KEY`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_LOCAL_ADVANCED_MODEL_TIER`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`、`HOTKEY_LIVE_OCR`。四层方法可独立强制选择，本地 Paddle 档位可在 `tiny`、`small` 和 `medium` 间切换；PaddleOCR 设备、API 普通地址/引擎/语言/超时仍是 `.env` 进阶项。两套 API 的地址、密钥和超时不得互拷；不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。设置页可切换翻译来源和模型；macOS 热键控件录制组合键，Windows 首版填写统一热键字符串。三组热键不得相同。
+桌面「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_STANDARD_API_KEY`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_LOCAL_ADVANCED_MODEL_TIER`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`、`HOTKEY_LIVE_OCR`。四层方法可独立强制选择，本地 Paddle 档位可在 `tiny`、`small` 和 `medium` 间切换；PaddleOCR 设备、API 普通地址/引擎/语言/超时仍是 `.env` 进阶项。两套 API 的地址、密钥和超时不得互拷；不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。macOS 翻译工作区的目标语言栏只更新当前进程，不写配置、不自动调用上游；持久默认仍由设置页的 `TRANSLATE_TARGET_LANG` 保存，设置应用后必须同步工作区栏位。设置页可切换翻译来源和模型；macOS 热键控件录制组合键，Windows 首版填写统一热键字符串。三组热键不得相同。
 
 ## 加载路径
 

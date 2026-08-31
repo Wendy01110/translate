@@ -90,6 +90,10 @@ class DesktopListener:
         return self._live_hotkey
 
     @property
+    def target_lang(self) -> str:
+        return self._target_lang
+
+    @property
     def live_running(self) -> bool:
         return self._live_running
 
@@ -98,6 +102,13 @@ class DesktopListener:
         if self._accessibility_ready is None:
             return True
         return bool(self._accessibility_ready())
+
+    def set_target_lang(self, target_lang: str) -> None:
+        normalized = target_lang.strip().lower()
+        if not normalized or normalized == self._target_lang:
+            return
+        self._target_lang = normalized
+        self._live_memory = LiveOcrMemory()
 
     def handle_selection(self) -> None:
         self._run_exclusive(self._selection_job)

@@ -1,6 +1,10 @@
 from ai_translate.core.errors import ImageSourceError, SelectionReadError
 from ai_translate.core.models import JobKind, JobStatus, ScreenRect, TranslateJob
-from ai_translate.features.ocr_translate import LIVE_STOPPED, OcrTranslateService
+from ai_translate.features.ocr_translate import (
+    LIVE_STOPPED,
+    LiveOcrMemory,
+    OcrTranslateService,
+)
 from ai_translate.features.selection import SelectionTranslateService
 from ai_translate.interfaces.listen import DesktopListener
 from tests.support import FakeOcrEngine, FakeTranslator
@@ -223,6 +227,32 @@ def test_typed_text_reuses_selection_translator() -> None:
     assert job.translated_text == "你好"
     assert translator.calls[0].text == "Hello"
     assert presenter.jobs == []
+
+
+def test_target_language_switch_applies_to_typed_text_and_resets_live_memory() -> None:
+    translator = FakeTranslator(translated_text="こんにちは")
+    listener, _ = _listener(selection=SelectionTranslateService(translator))
+    listener._live_memory = LiveOcrMemory(frame_hash="frame", ocr_text="Hello")
+
+    listener.set_target_lang(" JA ")
+    job = listener.handle_typed_text("Hello")
+
+    assert listener.target_lang == "ja"
+    assert listener._live_memory == LiveOcrMemory()
+    assert job.status is JobStatus.SUCCESS
+    assert translator.calls[0].target_lang == "ja"
+
+
+def test_target_language_switch_applies_to_next_ocr_translation() -> None:
+    translator = FakeTranslator(translated_text="안녕하세요")
+    listener, _ = _listener(
+        ocr_translate=OcrTranslateService(FakeOcrEngine(text="Hello"), translator)
+    )
+
+    listener.set_target_lang("ko")
+    listener.handle_ocr()
+
+    assert translator.calls[0].target_lang == "ko"
 
 
 def test_typed_text_empty_does_not_call_translator() -> None:

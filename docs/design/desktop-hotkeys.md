@@ -6,7 +6,7 @@
 
 - 目标：用可配置热键分别触发划词翻译、单次区域截屏 OCR 翻译，以及锁定区域后的实时 OCR 翻译。
 - 目标：复用现有 `SelectionTranslateService` 与 `OcrTranslateService`，不把热键层做成第二套翻译语义。
-- 非目标：在本文复制 Windows 热键、托盘和坐标规则；Windows 以 [Windows 桌面设计](./windows-desktop.md) 为准。划词工具栏、剪贴板监听和开机启动仍见待进行计划。输入翻译由菜单打开，不占用热键。
+- 非目标：在本文复制 Windows 热键、托盘和坐标规则；Windows 以 [Windows 桌面设计](./windows-desktop.md) 为准。划词工具栏、剪贴板监听和开机启动仍见待进行计划。输入翻译由菜单打开同一个翻译工作区，不占用全局热键；窗口内 `Command+Return` 只执行当前原文的文本翻译。
 - 非目标：在未按热键且未开始实时循环时读取选区、截屏或调用上游。
 
 ## 权威来源
@@ -31,7 +31,7 @@
 - OCR 热键只截取用户圈选的区域，使用系统 `screencapture -i`；用户取消视为 `screenshot_cancelled`，不调用 OCR。
 - 实时 OCR 热键先在 AppKit 主线程异步拖拽圈定矩形，不得用手写 `NSRunLoop` 轮询阻塞主线程；圈选中再次按下同一热键会取消圈选。取消或区域过小不截屏。运行中再次按下同一热键、点菜单「停止实时翻译」或关闭字幕条都会结束循环。字幕条放在矩形外侧，更新时不得把应用抢到前台。
 - 热键处理必须串行：上一次未结束时忽略新触发，避免重复付费调用。实时循环占用自己的运行标志，不得与另一次实时循环并行；单次划词仍可进行。
-- 浮窗是精简卡片：标题、原文、译文。可选中复制，不放按钮、历史或设置。原文和译文各自可滚动，窗口可拉大，不得用固定高度裁掉正文。标题可带「本机」或「模型」脚注。不展示密钥或原始图片。菜单栏 App 是 `LSUIElement`，浮窗必须 `hidesOnDeactivate=false`，否则会刚弹出就被系统藏掉。NSPanel 必须 `becomesKeyOnlyIfNeeded=false`，否则点选只读文本不会成为 key window，`Command+C` 进不了浮窗。应用要安装隐藏的 Edit 菜单，把 `Command+C` / `Command+A` 接到 `copy:` / `selectAll:`。未选中时 `copy:` 复制当前栏全文。已有浮窗只更新内容，不得再次 `center()` 成新窗口。划词必须先读选区，再弹出或更新浮窗，避免模拟复制打到自己身上。
+- macOS 翻译工作区是菜单输入、划词和单次 OCR 共用的精简窗口：`app.py` 只创建一个 `OverlayPresenter` / `NSPanel`，默认内容区 720×520，使用真白背景、冷灰圆角文本区和系统字体；宽度不小于 640 时原文/译文左右并排，低于阈值时上下排列。内容区不显示独立的「翻译」大标题；标题行左侧直接放置「目标语言」标签与原生下拉栏，宽屏下拉宽 120，紧凑布局缩为 104，来源脚注使用其与右侧动作之间的剩余空间，省下的第二行用于增高文本区。选项直接复用设置页的中文、英语、日语、韩语；自定义当前代码不在固定选项中时追加原值显示。切换只调用 `DesktopListener.set_target_lang()`，不自动请求、不写配置；下一次菜单输入、划词、单次 OCR、实时 OCR 或手动再译使用新目标。目标变化时清空实时 OCR 去重记忆，确保相同识别文字会按新目标重新翻译；设置页保存后同时同步 listener 与栏位。菜单输入会清空两栏并把焦点放到原文；划词和 OCR 填入各自结果，OCR 来源脚注保留。三种入口的原文均启用编辑、粘贴与撤销，所有译文只读；编辑本身不自动重新翻译，标题区在图钉左侧显示 72×32 的蓝紫「翻译」按钮，点击或按 `Command+Return` 都把当前原文交给组合入口注入的 `DesktopListener.handle_typed_text`，后台线程完成后在主线程更新当前译文和翻译来源脚注。翻译中按钮改为「翻译中…」并与目标语言栏一同禁用，避免重复请求或中途改变语义；加载提示等临时状态保持只读并隐藏翻译按钮。标题区另并排放置 32×32 的图钉与复制译文图标，不保留底部动作栏，也不放历史、设置、可见快捷键提示或额外诊断。图钉默认使用浅蓝紫底 `pin`，置顶后切成蓝底白色 `pin.fill`；复制使用轻灰底 `doc.on.doc`，只复制当前译文，成功后以浅蓝紫底 `checkmark` 显示 1.2 秒再恢复。三个按钮都保留原生 momentary 按压态。未置顶时使用 `NSNormalWindowLevel` 与 `NSWindowCollectionBehaviorMoveToActiveSpace | NSWindowCollectionBehaviorFullScreenAuxiliary`，首次显示或失焦后的下一次查询按鼠标所在 `NSScreen.visibleFrame` 居中，因此可以进入副屏全屏 Space；窗口失去 key 状态后主动 `orderOut`，确保不再遮挡全屏内容。点击图钉后切为 `NSFloatingWindowLevel` 与 `NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary`，失焦时不收起；取消置顶恢复普通层级、当前 Space 与失焦收起语义。置顶状态只在当前进程内保存，不写入配置。原文和译文可选中复制、各自滚动，窗口可拉大，不得用固定高度裁掉正文。不展示密钥或原始图片。菜单栏 App 是 `LSUIElement`，窗口必须 `hidesOnDeactivate=false` 且 `becomesKeyOnlyIfNeeded=false`；应用安装隐藏的 Edit 菜单，把 `Command+C` / `Command+A` 接到 `copy:` / `selectAll:`，未选中时 `copy:` 复制当前栏全文。失焦收起后的下一次查询可跟随鼠标切换显示器并重新弹出；划词必须先读选区，再弹出或更新窗口，避免模拟复制打到自己身上。实时字幕条继续保持独立浮动路径，确保锁定区域翻译期间可见。
 - `listen` 和菜单栏 App 只在 macOS 上运行。启动时不调用上游。
 - 菜单栏 App 必须是带 `LSUIElement` 的 `.app`，主进程是包内可执行文件，不得 `exec` 成系统 `python3`，否则辅助功能仍会记到 Python。本机只安装一份到 `~/Applications/AI Translate.app`。
 - AppKit 的 `NSObject` 子类必须使用唯一类名，并且整个进程只注册一次；不得在窗口构造时反复定义 `_Controller`，否则第二次打开设置会报 `overriding existing Objective-C class`。

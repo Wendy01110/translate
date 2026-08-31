@@ -211,7 +211,7 @@ class _LiveOverlayBackend:
         self._window.setTitle_(content.title)
         self._source.setStringValue_(content.source or "")
         self._translation.setStringValue_(content.translation or "")
-        _prepare_overlay_window(self._window)
+        _prepare_overlay_window(self._window, pinned=True)
         if not self._placed:
             self._place_window()
             self._placed = True
@@ -253,7 +253,7 @@ class _LiveOverlayBackend:
         )
         window.setMinSize_((LIVE_MIN_WIDTH, 64.0))
         ensure_edit_menu()
-        _prepare_overlay_window(window)
+        _prepare_overlay_window(window, pinned=True)
         delegate = _live_window_delegate_class().alloc().init()
         delegate.owner = self
         window.setDelegate_(delegate)
