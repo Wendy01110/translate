@@ -44,19 +44,23 @@ class HttpTranslator:
                 "Return only the translation, with no quotes or commentary."
             )
 
+        payload = {
+            "model": self._settings.model,
+            "messages": [
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": request.text},
+            ],
+            "store": False,
+        }
+        if self._settings.router_thinking is not None:
+            payload["router"] = {"thinking": self._settings.router_thinking}
+
         _, body, error = post_chat_completion(
             self._client,
             base_url=self._settings.base_url,
             api_key=self._settings.api_key.get_secret_value(),
             timeout_seconds=self._settings.timeout_seconds,
-            payload={
-                "model": self._settings.model,
-                "messages": [
-                    {"role": "system", "content": instruction},
-                    {"role": "user", "content": request.text},
-                ],
-                "store": False,
-            },
+            payload=payload,
         )
         if error or body is None:
             return TranslationResult(

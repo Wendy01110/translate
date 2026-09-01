@@ -38,6 +38,7 @@
 - `TRANSLATE_API_KEY`：当前翻译来源的密钥。
 - `TRANSLATE_MODEL`：仅 `openai` 使用的模型名。
 - `TRANSLATE_MODELS`：设置页可选的翻译模型列表，逗号分隔。当前 `TRANSLATE_MODEL` 会自动加入列表。不向网关查询模型。
+- `TRANSLATE_ROUTER_THINKING`：可选的 `llm-token-router` 私有布尔开关；`false` 显式关闭上游深度思考，`true` 显式开启，省略则不发送 `router` 字段并沿用上游默认。连接其它 OpenAI 兼容服务时应省略。
 - `TRANSLATE_REGION`：仅 `microsoft` 使用的 Azure 区域，例如 `eastus`。
 - `TRANSLATE_TIMEOUT_SECONDS`：单次翻译请求超时。
 - `TRANSLATE_SOURCE_LANG`：源语言，默认 `auto`。

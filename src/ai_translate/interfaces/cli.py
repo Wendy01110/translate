@@ -74,6 +74,7 @@ def format_config_status(status: ConfigStatus) -> str:
             f"  provider: {_display(status.translate_provider)}",
             f"  base_url: {_display(status.translate_base_url)}",
             f"  model: {_display(status.translate_model)}",
+            f"  router_thinking: {_optional_flag(status.translate_router_thinking)}",
             f"  api_key: {translate_key}",
             f"  source_lang: {_display(status.translate_source_lang)}",
             f"  target_lang: {_display(status.translate_target_lang)}",
@@ -232,6 +233,10 @@ def _resolve_pages(
 
 def _flag(value: bool) -> str:
     return "true" if value else "false"
+
+
+def _optional_flag(value: bool | None) -> str:
+    return "upstream_default" if value is None else _flag(value)
 
 
 def _display(value: str) -> str:

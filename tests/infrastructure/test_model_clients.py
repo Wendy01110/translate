@@ -42,6 +42,36 @@ def test_translator_uses_only_translate_settings(monkeypatch: pytest.MonkeyPatch
     assert captured["url"] == "https://translate.example/v1/chat/completions"
     assert captured["authorization"] == "Bearer translate-secret"
     assert captured["body"]["model"] == "translate-model"
+    assert "router" not in captured["body"]
+
+
+@pytest.mark.parametrize("thinking", [False, True])
+def test_translator_can_explicitly_control_router_thinking(thinking: bool) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "你好"}}]},
+        )
+
+    translator = HttpTranslator(
+        TranslateSettings(
+            base_url="http://127.0.0.1:8000/v1",
+            model="translate-model",
+            router_thinking=thinking,
+            _env_file=None,
+        ),
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = translator.translate(
+        TranslationRequest(text="Hello", source_lang="en", target_lang="zh")
+    )
+
+    assert result.status is JobStatus.SUCCESS
+    assert captured["body"]["router"] == {"thinking": thinking}
 
 
 def test_ocr_engine_uses_only_ocr_settings(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -53,8 +53,21 @@ def _common_services(settings: Settings) -> CliServices:
 
 def _paddle_first_load_notifier(
     presenter: ResultPresenter,
+    *,
+    live_presenter: ResultPresenter | None = None,
+    live_active: Callable[[], bool] | None = None,
 ) -> Callable[[str], None]:
-    return lambda model: presenter.show_status(paddle_first_load_message(model))
+    def notify(model: str) -> None:
+        target = presenter
+        if (
+            live_presenter is not None
+            and live_active is not None
+            and live_active()
+        ):
+            target = live_presenter
+        target.show_status(paddle_first_load_message(model))
+
+    return notify
 
 
 def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliServices:
@@ -164,19 +177,18 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         WindowsRectCapture,
         WindowsRegionScreenshot,
         send_windows_copy_key,
+        windows_clipboard_owned_by_foreground,
     )
-    from ai_translate.interfaces.windows_desktop import (
-        WindowsHotkeyListener,
+    from ai_translate.interfaces.windows_desktop import WindowsHotkeyListener
+    from ai_translate.interfaces.windows_qt import (
         WindowsLiveOverlayPresenter,
         WindowsOverlayPresenter,
         WindowsRegionPicker,
+        WindowsSettingsPresenter,
         WindowsUiRuntime,
         run_windows_status_app,
     )
-    from ai_translate.interfaces.windows_views import (
-        WindowsInputTranslatePresenter,
-        WindowsSettingsPresenter,
-    )
+    from ai_translate.interfaces.settings import TARGET_LANG_OPTIONS
 
     runtime = WindowsUiRuntime()
     picker = WindowsRegionPicker(runtime)
@@ -203,10 +215,18 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         copy_selection=send_windows_copy_key,
         can_simulate_copy=lambda: True,
         fallback_to_saved_clipboard=True,
+        can_use_saved_clipboard=windows_clipboard_owned_by_foreground,
     )
     presenter = WindowsOverlayPresenter(runtime)
     live_ui = WindowsLiveOverlayPresenter(runtime)
-    paddle_first_load = _paddle_first_load_notifier(presenter)
+    listener_holder: list[DesktopListener] = []
+    paddle_first_load = _paddle_first_load_notifier(
+        presenter,
+        live_presenter=live_ui,
+        live_active=lambda: bool(
+            listener_holder and listener_holder[0].live_running
+        ),
+    )
     listener = DesktopListener(
         selection=selection_service(settings),
         ocr_translate=ocr_translate_service(
@@ -228,6 +248,13 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         capture_rect=rect_capture.capture_rect,
         live_presenter=live_ui,
     )
+    listener_holder.append(listener)
+    presenter.set_translate(listener.handle_typed_text)
+    presenter.configure_target_languages(
+        TARGET_LANG_OPTIONS,
+        current=settings.translate.target_lang,
+        on_change=listener.set_target_lang,
+    )
     live_ui.set_stop(listener.stop_live)
     start_listener = listener.run if "listen" in args else None
     start_app = None
@@ -248,15 +275,12 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
                 ocr_hotkey=refreshed.hotkey.ocr,
                 live_hotkey=refreshed.hotkey.live_ocr,
             )
+            presenter.set_target_language(refreshed.translate.target_lang)
 
         settings_ui = WindowsSettingsPresenter(
             runtime,
             load=lambda: Settings.load().preferences(),
             save=save_preferences,
-        )
-        input_ui = WindowsInputTranslatePresenter(
-            runtime,
-            translate=listener.handle_typed_text,
         )
         instance = WindowsInstanceLock()
 
@@ -267,7 +291,7 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
                 acquire_instance=instance.acquire,
                 release_instance=instance.close,
                 open_settings=settings_ui.show,
-                open_input=input_ui.show,
+                open_input=presenter.show_input,
             )
 
         start_app = start_app_run

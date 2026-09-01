@@ -6,6 +6,7 @@ from ai_translate.infrastructure.windows_desktop import (
     WindowsClipboard,
     WindowsRectCapture,
     WindowsRegionScreenshot,
+    windows_clipboard_owned_by_foreground,
 )
 
 
@@ -60,6 +61,26 @@ def test_windows_clipboard_retries_when_another_app_holds_it() -> None:
     clipboard = WindowsClipboard(api_factory=lambda: api, wait=waits.append)
     assert clipboard.read() == "copied"
     assert len(waits) == 2
+
+
+def test_windows_clipboard_fallback_requires_foreground_owner_process() -> None:
+    process_ids = {10: 100, 20: 100, 30: 300}
+
+    assert windows_clipboard_owned_by_foreground(
+        clipboard_owner=lambda: 10,
+        foreground_window=lambda: 20,
+        process_id_for_window=process_ids.__getitem__,
+    ) is True
+    assert windows_clipboard_owned_by_foreground(
+        clipboard_owner=lambda: 10,
+        foreground_window=lambda: 30,
+        process_id_for_window=process_ids.__getitem__,
+    ) is False
+    assert windows_clipboard_owned_by_foreground(
+        clipboard_owner=lambda: 0,
+        foreground_window=lambda: 20,
+        process_id_for_window=process_ids.__getitem__,
+    ) is False
 
 
 def test_windows_rect_capture_returns_bounded_png() -> None:

@@ -86,6 +86,27 @@ def test_selected_text_can_fall_back_when_copy_injection_fails() -> None:
     assert clipboard.value == "manually copied"
 
 
+def test_selected_text_rejects_stale_saved_clipboard_on_windows() -> None:
+    clipboard = _Clipboard("stale clipboard")
+
+    source = SelectedTextSource(
+        clipboard_read=clipboard.read,
+        clipboard_write=clipboard.write,
+        copy_selection=lambda: None,
+        wait=lambda _seconds: None,
+        can_simulate_copy=lambda: True,
+        fallback_to_saved_clipboard=True,
+        can_use_saved_clipboard=lambda: False,
+    )
+
+    try:
+        source.read_selected_text()
+        raise AssertionError("expected SelectionReadError")
+    except SelectionReadError as exc:
+        assert exc.code == "copy_simulation_failed"
+    assert clipboard.value == "stale clipboard"
+
+
 def test_selected_text_uses_clipboard_when_copy_cannot_be_simulated() -> None:
     clipboard = _Clipboard("already copied")
     calls = {"n": 0}

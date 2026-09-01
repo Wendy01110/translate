@@ -69,6 +69,32 @@ class WindowsClipboard:
                 self._wait(_CLIPBOARD_RETRY_SECONDS)
 
 
+def windows_clipboard_owned_by_foreground(
+    *,
+    clipboard_owner: Callable[[], int] | None = None,
+    foreground_window: Callable[[], int] | None = None,
+    process_id_for_window: Callable[[int], int] | None = None,
+) -> bool:
+    if clipboard_owner is None or foreground_window is None:
+        if sys.platform != "win32":
+            return False
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        user32.GetClipboardOwner.restype = ctypes.c_void_p
+        user32.GetForegroundWindow.restype = ctypes.c_void_p
+        if clipboard_owner is None:
+            clipboard_owner = lambda: int(user32.GetClipboardOwner() or 0)
+        if foreground_window is None:
+            foreground_window = lambda: int(user32.GetForegroundWindow() or 0)
+    owner = int(clipboard_owner() or 0)
+    foreground = int(foreground_window() or 0)
+    if owner == 0 or foreground == 0:
+        return False
+    process_lookup = process_id_for_window or _windows_process_id_for_window
+    owner_process = int(process_lookup(owner))
+    foreground_process = int(process_lookup(foreground))
+    return owner_process != 0 and owner_process == foreground_process
+
+
 class WindowsRectCapture:
     def __init__(
         self,
@@ -205,6 +231,20 @@ def send_windows_copy_key() -> None:
     sent = int(user32.SendInput(len(events), events, ctypes.sizeof(Input)))
     if sent != len(events):
         raise SelectionReadError("copy_simulation_failed")
+
+
+def _windows_process_id_for_window(window: int) -> int:
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.GetWindowThreadProcessId.argtypes = [
+        wintypes.HWND,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    process_id = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(window, ctypes.byref(process_id))
+    return int(process_id.value)
 
 
 def _wait_windows_modifiers_released(

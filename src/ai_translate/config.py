@@ -24,6 +24,7 @@ class TranslateSettings(BaseSettings):
     model: str = ""
     models: str = ""
     provider: str = "google_web"
+    router_thinking: bool | None = None
     region: str = ""
     timeout_seconds: float = Field(default=30.0, gt=0)
     source_lang: str = "auto"

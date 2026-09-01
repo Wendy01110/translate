@@ -15,7 +15,7 @@
 | 区域矩形 | `core/models.py` 的 `ScreenRect` |
 | 单步策略 | `features/ocr_translate.py` 的 `advance_live` |
 | 固定区域截屏 | `infrastructure/screenshot.py`、`infrastructure/windows_desktop.py` |
-| 圈选与字幕条 | `interfaces/region_picker.py`、`interfaces/live_overlay.py`、`interfaces/windows_desktop.py` |
+| 圈选与字幕条 | `interfaces/region_picker.py`、`interfaces/live_overlay.py`、`interfaces/windows_qt.py`、`interfaces/qml/` |
 | 开停与热键 | `interfaces/listen.py`、`HOTKEY_LIVE_OCR` |
 
 ## 核心约束
@@ -24,11 +24,11 @@
 - 圈选必须由平台 UI 主线程异步回调结果，不得在主线程手写阻塞轮询；圈选中再次触发实时热键会取消圈选，单次 OCR 触发则忽略，不得重入第二个圈选器。
 - 每轮目标起点间隔固定为 0.8 秒；截屏、OCR 和翻译耗时计入间隔，某轮超过目标间隔时结束后再继续，不得并行打两条实时流。
 - 截屏范围必须是用户圈定的矩形，不得改成整屏。
-- macOS 圈选在每个 `NSScreen` 上分别创建一个共享会话的透明面板，兼容“显示器具有独立空间”时从任意屏幕开始拖拽；圈选和字幕条使用 AppKit 左下原点全局坐标，固定截屏前按主显示器高度转换为 Quartz 左上原点坐标。Windows 统一使用虚拟桌面左上原点的物理像素坐标，并保留负坐标副屏。
+- macOS 圈选在每个 `NSScreen` 上分别创建一个共享会话的透明面板，兼容“显示器具有独立空间”时从任意屏幕开始拖拽；圈选和字幕条使用 AppKit 左下原点全局坐标，固定截屏前按主显示器高度转换为 Quartz 左上原点坐标。Windows 也为每块物理显示器创建一个共享会话的 Qt Quick 覆盖层；QML 逻辑像素通过当前窗口 `devicePixelRatio` 转成虚拟桌面左上原点的全局物理像素，并保留负坐标副屏。
 - 图片指纹相同则不调用 OCR；识别文本与上一拍相同则不调用翻译。
 - 每个变化帧仍只调用同一个分流 `OcrEngine`：自动模式按本地普通、本地高级、API 普通、API 高级顺序串行升级，任一层成功后不得调用后续层，也不得并行竞速。
 - 识别为空时字幕条清空，不得继续显示上一句译文。翻译失败时显示错误或空白，不得用上一句成功译文冒充当前句。
-- 字幕条必须放在圈选区域外侧，避免把译文截进下一帧。
+- 字幕条必须放在圈选区域外侧，避免把译文截进下一帧；Windows 字幕条高度按内容与窗口 DPI 有界调整，不能用固定物理像素上限导致 150%/200% 缩放下裁掉状态或停止入口。
 - 停止后不再开始下一步截屏、OCR 或翻译；已在途的调用即使返回也必须丢弃，不能覆盖新一轮状态或重新弹出字幕条。关闭字幕条视为停止。
 - 字幕条的显示和隐藏都必须回到平台 UI 主线程。
 - 实时路径不得读取翻译配置去顶替 OCR，也不得把图像直接交给翻译端口。

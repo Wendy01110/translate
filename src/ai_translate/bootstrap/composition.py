@@ -45,6 +45,7 @@ def config_status(settings: Settings) -> ConfigStatus:
         translate_provider=translate.provider,
         translate_base_url=translate.base_url,
         translate_model=translate.model,
+        translate_router_thinking=translate.router_thinking,
         translate_api_key_set=translate.api_key_set,
         translate_source_lang=translate.source_lang,
         translate_target_lang=translate.target_lang,

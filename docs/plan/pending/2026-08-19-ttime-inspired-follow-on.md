@@ -18,7 +18,7 @@
 
 1. 输入框翻译：已完成，见 [默认内置翻译源与输入框翻译](../completed/2026-08-20-default-provider-and-input-box.md)。
 2. 菜单栏常驻：已完成，见 [macOS 菜单栏 App](../completed/2026-08-19-macos-menu-bar-app.md)。
-3. 复制译文：macOS 普通结果浮窗已完成标题区复制按钮，只复制当前译文；Windows 复制入口已纳入 [Windows 桌面 UI 优化](./2026-09-01-windows-ui-optimization.md)，仍需在统一工作区实施和真机验收后才能标记完成。
+3. 复制译文：macOS 普通结果浮窗与 Windows 统一工作区都已完成标题区复制按钮，只复制当前译文；Windows Qt 迁移与实际复制证据见 [Windows Qt 桌面 UI 迁移](../completed/2026-09-01-windows-ui-optimization.md)。
 4. 有界历史：本地保存有限条记录并限制文本长度，不含图片和密钥。
 5. 划词工具栏：鼠标松开后在选区旁出现「译」按钮，减少记热键。依赖更稳的选区检测，且必须可关闭。
 6. 剪贴板监听：可选开启，复制后自动翻译。默认关闭，避免把剪贴板上传变成默认行为。
@@ -27,7 +27,7 @@
 ## 明确不做或后置
 
 - 多源同时展示、插件市场、有道/百度/腾讯、内置离线词典：本轮不做。Google/Bing/DeepL 网页内置源见 [内置网页翻译源](../completed/2026-08-19-web-translate-sources.md)。
-- Linux 安装包和自动更新继续后置；Windows 桌面入口已拆到 [Windows 桌面版 MVP](../in-progress/2026-08-20-windows-mvp.md)，首版不做自动更新。
+- Linux 安装包和自动更新继续后置；Windows 桌面入口已由 [Windows 桌面版 MVP](../completed/2026-08-20-windows-mvp.md) 完成，首版不做自动更新。
 - 主题商店、多语言 UI、账号同步：不是当前痛点。
 - 悬浮球拖拽：可被菜单栏替代，不单独作为下一阶段。
 

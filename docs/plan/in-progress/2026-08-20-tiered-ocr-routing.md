@@ -4,7 +4,7 @@
 >
 > 创建日期：2026-08-20（Asia/Shanghai）
 >
-> 更新日期：2026-08-21（Asia/Shanghai）
+> 更新日期：2026-09-01（Asia/Shanghai）
 
 ## 目标
 
@@ -56,7 +56,7 @@
 - `auto` 的顺序和停止条件可由 Fake 端口验证；本地高级成功时不调用 API，API 普通成功时不调用 API 高级。
 - 四种强制单层模式可分别验证；现有 `OCR_ENGINE=standard` 与 `model` 行为保持不变。
 - `config-check` 能区分本地普通、本地高级、API 普通和 API 高级的静态状态，但不把静态就绪声明为真实识别成功。
-- macOS PP-OCRv6 small 与 Windows PP-OCRv6 tiny 本地图片真实样例已经通过；Windows 桌面截屏、首次提醒与 API 两层仍未完成，因此计划保持进行中，不能声称 Windows 四层 OCR 已全部验收。
+- macOS PP-OCRv6 small 与 Windows PP-OCRv6 tiny 本地图片真实样例已经通过；Windows 真实屏幕圈选、桌面首次提醒与 API 两层也已完成。计划仅因 macOS 桌面首次提醒仍缺点击级显示证据而保持进行中，不能把其中一端的证据替代另一端。
 
 ## 授权与停止边界
 
@@ -79,4 +79,4 @@
 - PaddleOCR、四层路由、composition、配置、设置和 CLI 定向测试已通过；其中首次加载提醒相关的 Paddle、composition、overlay 与 App 定向测试 31 项通过，Python 3.13 环境下完整离线套件 249 项通过，`pip check` 与 `git diff --check` 通过。
 - macOS App 已重新构建并签名，arm64 启动器链接 Homebrew Python 3.13，嵌入的新项目 site-packages 路径、Info.plist 和代码签名检查通过；打开后进程实际从新环境加载并保持运行。
 - Windows 项目 `.env` 已保持 `OCR_ENGINE=auto` 与 PP-OCRv6 tiny，并把 API 高级独立配置到本机 `llm-token-router` 的已验证视觉模型。项目客户端真实识别两行合成图时只返回原文；正式 CLI 强制 API 高级 OCR 和 API 高级 OCR 后 Router 翻译均成功。OCR.space 使用官方公共 `helloworld` 测试 key 的前两次 Engine 2 请求返回 HTTP 503，停止重试后在后续独立复试中 1.969 秒准确识别 `OCR SPACE WINDOWS 2026`；公共 key 始终未写入 `.env`，API 普通层现已有成功真测。
-- Windows 主屏固定区域截图经 PP-OCRv6 tiny 精确识别三行固定文本；双屏虚拟桌面的副屏负坐标、DPI 96 客户区也准确识别 `SECOND MONITOR OCR 2026`。两个新引擎实例的首次加载回调均各触发一次；剩余验证是 macOS/Windows 桌面端首次提醒的实际显示，以及 Windows 无标题圈选层的人工鼠标拖拽，不再缺 API 两层或真实截屏证据。
+- Windows 主屏实际鼠标圈选的三行固定文本经 PP-OCRv6 tiny 完整识别并由 Router 翻译；双屏虚拟桌面的副屏负坐标、DPI 96 客户区也准确识别 `SECOND MONITOR OCR 2026`。普通 OCR 与实时 OCR 的桌面首次加载提醒均已实际显示，来源脚注显示「本地高级」，OCR 原文修正后只重跑文本翻译。Windows 端不再缺 API 两层、真实截屏、鼠标圈选或首次提醒证据；剩余验证仅是 macOS 桌面端首次提醒的实际显示。

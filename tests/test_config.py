@@ -101,6 +101,17 @@ def test_default_provider_is_google_web_and_ready() -> None:
     assert settings.ready is True
 
 
+def test_translate_router_thinking_is_optional(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TRANSLATE_ROUTER_THINKING", raising=False)
+    assert TranslateSettings(_env_file=None).router_thinking is None
+
+    monkeypatch.setenv("TRANSLATE_ROUTER_THINKING", "false")
+    assert TranslateSettings(_env_file=None).router_thinking is False
+
+    monkeypatch.setenv("TRANSLATE_ROUTER_THINKING", "true")
+    assert TranslateSettings(_env_file=None).router_thinking is True
+
+
 def test_ocr_image_mode_auto_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OCR_IMAGE_MODE", "auto")
     assert OcrSettings(_env_file=None).image_mode == ""

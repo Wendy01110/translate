@@ -47,6 +47,7 @@ _ERROR_TEXT = {
     "clipboard_write_failed": "无法写入剪贴板。",
     "selection_too_long": "选中的文字太长。",
     "text_too_long": "文字太长。",
+    "busy": "正在翻译，请稍后再试。",
     "unsupported_language": "当前翻译源不支持这个语言。",
     "http_403": "网页翻译被拒绝，可稍后再试或改用官方密钥源。",
     "http_429": "翻译请求太频繁，请稍后再试。",
@@ -91,7 +92,7 @@ def format_overlay(job: TranslateJob) -> OverlayContent:
     )
 
 
-def format_macos_translation(job: TranslateJob | None = None) -> OverlayContent:
+def format_translation_workspace(job: TranslateJob | None = None) -> OverlayContent:
     if job is None:
         return OverlayContent(
             title="翻译",
@@ -108,6 +109,10 @@ def format_macos_translation(job: TranslateJob | None = None) -> OverlayContent:
         footnote=content.footnote,
         source_editable=True,
     )
+
+
+def format_macos_translation(job: TranslateJob | None = None) -> OverlayContent:
+    return format_translation_workspace(job)
 
 
 def format_status(message: str, source: str = "") -> OverlayContent:
@@ -1360,6 +1365,8 @@ _OverlayTextView = None
 def _footnote(job: TranslateJob) -> str:
     if job.kind is JobKind.OCR and job.ocr_engine == "vision":
         return "本机"
+    if job.kind is JobKind.OCR and job.ocr_engine == "paddle":
+        return "本地高级"
     if job.kind is JobKind.OCR and job.ocr_engine == "standard":
         return "普通"
     if job.kind is JobKind.OCR and job.ocr_engine == "model":

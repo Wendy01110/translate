@@ -26,6 +26,7 @@ from ai_translate.interfaces.overlay import (
     edit_menu_commands,
     format_macos_translation,
     format_overlay,
+    format_translation_workspace,
     normalize_target_language_options,
     overlay_becomes_key_only_if_needed,
     overlay_copy_button_title,
@@ -54,6 +55,24 @@ def test_overlay_keeps_full_long_text() -> None:
     )
     assert content.source == source
     assert content.translation == translation
+    assert content.source_editable is True
+
+
+def test_translation_workspace_makes_ocr_source_editable_for_manual_retry() -> None:
+    content = format_translation_workspace(
+        TranslateJob(
+            kind=JobKind.OCR,
+            status=JobStatus.PARTIAL,
+            source_text=None,
+            translated_text=None,
+            ocr_text="OCR source",
+            error="timeout",
+        )
+    )
+
+    assert content.title == "翻译"
+    assert content.source == "OCR source"
+    assert content.translation == "timeout"
     assert content.source_editable is True
 
 
@@ -199,7 +218,17 @@ def test_macos_translation_workspace_unifies_input_selection_and_ocr() -> None:
     assert ocr.source_editable is True
 
 
-def test_overlay_ocr_footnote_marks_standard_and_advanced_tiers() -> None:
+def test_overlay_ocr_footnote_marks_local_and_remote_advanced_tiers() -> None:
+    local_advanced = format_overlay(
+        TranslateJob(
+            kind=JobKind.OCR,
+            status=JobStatus.SUCCESS,
+            source_text=None,
+            translated_text="本地高级结果",
+            ocr_text="source",
+            ocr_engine="paddle",
+        )
+    )
     standard = format_overlay(
         TranslateJob(
             kind=JobKind.OCR,
@@ -220,6 +249,7 @@ def test_overlay_ocr_footnote_marks_standard_and_advanced_tiers() -> None:
             ocr_engine="model",
         )
     )
+    assert local_advanced.footnote == "本地高级"
     assert standard.footnote == "普通"
     assert advanced.footnote == "高级"
 

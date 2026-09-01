@@ -14,7 +14,7 @@ dependencies = [
   "pydantic-settings",
   "pynput",
   "Pillow; sys_platform == 'win32'",
-  "pystray; sys_platform == 'win32'",
+  "PySide6>=6.8,<7; sys_platform == 'win32'",
   "pywin32; sys_platform == 'win32'",
   "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
   "pyobjc-framework-Quartz; sys_platform == 'darwin'",
@@ -35,6 +35,9 @@ ai-translate = "ai_translate.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"ai_translate.interfaces" = ["qml/*.qml", "qml/icons/*.svg"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

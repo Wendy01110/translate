@@ -81,6 +81,7 @@ def test_config_check_masks_secrets_and_exits_zero(capsys) -> None:
         translate_ready=True,
         translate_base_url="https://translate.example/v1",
         translate_model="translate-model",
+        translate_router_thinking=False,
         translate_api_key_set=True,
         ocr_ready=True,
         ocr_base_url="https://ocr.example/v1",
@@ -100,6 +101,7 @@ def test_config_check_masks_secrets_and_exits_zero(capsys) -> None:
     assert "translate-secret" not in output
     assert "ocr-secret" not in output
     assert "https://translate.example/v1" in output
+    assert "router_thinking: false" in output
     assert "https://ocr.example/v1" in output
     assert "https://api.ocr.space/parse/image" in output
 

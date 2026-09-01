@@ -12,8 +12,12 @@ def test_windows_dependencies_are_platform_scoped() -> None:
     )
     dependencies = set(pyproject["project"]["dependencies"])
     assert "Pillow; sys_platform == 'win32'" in dependencies
-    assert "pystray; sys_platform == 'win32'" in dependencies
+    assert "PySide6>=6.8,<7; sys_platform == 'win32'" in dependencies
     assert "pywin32; sys_platform == 'win32'" in dependencies
+    assert "pystray; sys_platform == 'win32'" not in dependencies
+    package_data = pyproject["tool"]["setuptools"]["package-data"]
+    assert "qml/*.qml" in package_data["ai_translate.interfaces"]
+    assert "qml/icons/*.svg" in package_data["ai_translate.interfaces"]
 
 
 def test_windows_source_install_uses_project_venv_and_launcher() -> None:

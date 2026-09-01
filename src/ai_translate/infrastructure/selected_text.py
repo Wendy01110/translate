@@ -142,6 +142,7 @@ class SelectedTextSource:
         wait_seconds: float = COPY_WAIT_SECONDS,
         can_simulate_copy: Callable[[], bool] | None = None,
         fallback_to_saved_clipboard: bool = False,
+        can_use_saved_clipboard: Callable[[], bool] | None = None,
     ) -> None:
         self._read = clipboard_read
         self._write = clipboard_write
@@ -150,6 +151,7 @@ class SelectedTextSource:
         self._wait_seconds = wait_seconds
         self._can_simulate_copy = can_simulate_copy or accessibility_trusted
         self._fallback_to_saved_clipboard = fallback_to_saved_clipboard
+        self._can_use_saved_clipboard = can_use_saved_clipboard
 
     def read_selected_text(self) -> str:
         if not self._can_simulate_copy():
@@ -158,12 +160,13 @@ class SelectedTextSource:
                 raise SelectionReadError("accessibility_required")
             return text
         saved = self._read()
+        fallback_allowed = self._saved_clipboard_is_current()
         try:
             self._write(EMPTY_SENTINEL)
             try:
                 self._copy()
             except SelectionReadError:
-                if self._fallback_to_saved_clipboard:
+                if fallback_allowed:
                     return _bounded_text(saved)
                 raise
             self._wait(self._wait_seconds)
@@ -171,10 +174,23 @@ class SelectedTextSource:
         finally:
             self._write(saved)
         if current == EMPTY_SENTINEL:
-            if self._fallback_to_saved_clipboard:
+            if fallback_allowed:
                 return _bounded_text(saved)
+            if self._fallback_to_saved_clipboard:
+                raise SelectionReadError("copy_simulation_failed")
             return ""
         return _bounded_text(current)
+
+    def _saved_clipboard_is_current(self) -> bool:
+        if not self._fallback_to_saved_clipboard:
+            return False
+        checker = self._can_use_saved_clipboard
+        if checker is None:
+            return True
+        try:
+            return bool(checker())
+        except Exception:
+            return False
 
 
 def _bounded_text(value: str) -> str:
