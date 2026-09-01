@@ -28,6 +28,14 @@ Windows 11 x64 源码安装、PySide6/Qt Quick 托盘宿主、统一翻译工作
 - 文档结构测试、`pip check` 与 `git diff --check` 通过。
 - `config-check` 脱敏回读当前 `provider=openai`、本地 Router 地址、Turbo 模型和 `router_thinking=false`，两侧 API key 仍只显示 `unset`。
 
+## 统一复核
+
+- 提交前再次从文档入口和唯一进行中计划回读当前状态；Windows MVP 与 Qt UI 计划仍位于 `completed/`，四层 OCR 计划只因 macOS 桌面首次提醒缺少点击级显示证据而保持 `in-progress/`，没有用 Windows 证据替代 macOS 验收。
+- `TRANSLATE_ROUTER_THINKING` 在 `.env.example`、配置模型、composition、请求载荷、`config-check`、README、稳定设计与测试中的定义一致；当前脱敏配置仍回读 `router_thinking=false`。项目 `.env` 继续由 `.gitignore` 排除，仓库中没有遗留临时验收文件或提交消息文件。
+- Windows 启动器和项目虚拟环境派生的 Python 3.13 桌面子进程均保持运行，启动时间晚于 `.env` 最后修改时间；本地 Router `/health` 返回 `status=ok`。
+- 仅追加一条极短真实回归请求：`Unified verification.` 返回「统一验证。」，退出码为 0，端到端 2.675 秒。命令捕获层把同样的本地 Python 中文输出按错误代码页显示为乱码，纯本地 `print` 可稳定复现，因此不把该捕获层编码现象误判为 Router 翻译错误。
+- 完整离线套件再次通过 295 项、跳过 2 项（macOS `fcntl` / PyObjC 专属路径），耗时 1.86 秒；`pip check` 报告无损坏依赖，`git diff --check` 通过。复核开始时 `main` 与本地 `origin/main` 均为 `f96c5de`、ahead/behind 为 0/0，工作区干净。
+
 ## 保留边界
 
 当前安全自动化仍不能把任务栏通知区域识别为可点击窗口，因此只声明真实 `QSystemTrayIcon` 可用/可见和激活信号验证，不声称发送过物理托盘点击。Windows 源码 MVP 已完成，但这不等于 MSIX、签名、自动更新或正式发布验收。
