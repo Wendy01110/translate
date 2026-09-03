@@ -99,6 +99,7 @@ def format_config_status(status: ConfigStatus) -> str:
             f"      ready: {_flag(status.ocr_advanced_ready)}",
             f"      base_url: {_display(status.ocr_base_url)}",
             f"      model: {_display(status.ocr_model)}",
+            f"      router_thinking: {_optional_flag(status.ocr_router_thinking)}",
             f"      api_key: {advanced_key}",
             f"      image_mode: {_display(status.ocr_image_mode)}",
             f"      max_tokens: {status.ocr_max_tokens}",

@@ -38,7 +38,7 @@
 - `TRANSLATE_API_KEY`：当前翻译来源的密钥。
 - `TRANSLATE_MODEL`：仅 `openai` 使用的模型名。
 - `TRANSLATE_MODELS`：设置页可选的翻译模型列表，逗号分隔。当前 `TRANSLATE_MODEL` 会自动加入列表。不向网关查询模型。
-- `TRANSLATE_ROUTER_THINKING`：可选的 `llm-token-router` 私有布尔开关；`false` 显式关闭上游深度思考，`true` 显式开启，省略则不发送 `router` 字段并沿用上游默认。连接其它 OpenAI 兼容服务时应省略。
+- `TRANSLATE_ROUTER_THINKING`：可选的 `llm-token-router` 私有布尔开关；默认本机地址 `http://127.0.0.1:8000/v1` 及等价 `localhost` 地址即使省略也按 `false` 发送，`true` 才开启。自定义 Router 地址需显式配置；连接其它 OpenAI 兼容服务时应省略。
 - `TRANSLATE_REGION`：仅 `microsoft` 使用的 Azure 区域，例如 `eastus`。
 - `TRANSLATE_TIMEOUT_SECONDS`：单次翻译请求超时。
 - `TRANSLATE_SOURCE_LANG`：源语言，默认 `auto`。
@@ -64,6 +64,7 @@ API 高级：
 - `OCR_BASE_URL`：高级 OCR 的 OpenAI 兼容 Chat Completions 基础地址，通常以 `/v1` 结尾。
 - `OCR_API_KEY`：高级 OCR 上游的独立密钥。
 - `OCR_MODEL`：高级 OCR 模型名，默认 `Unlimited-OCR`。
+- `OCR_ROUTER_THINKING`：API 高级 OCR 独立的 `llm-token-router` 私有布尔开关；默认本机 Router 地址在省略时按 `false` 发送，`true` 才开启。自定义 Router 地址需显式配置；连接其它 OpenAI 兼容服务时应省略。
 - `OCR_MODELS`：设置页可选的 OCR 模型列表，逗号分隔。当前 `OCR_MODEL` 会自动加入列表。不向网关查询模型。
 - `OCR_TIMEOUT_SECONDS`：单次 OCR 请求超时，默认 180。
 - `OCR_MAX_TOKENS`：单次 OCR 最大输出 token，默认 24000。
@@ -77,7 +78,7 @@ API 高级：
 
 OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `listen` 和桌面 App 注册，`config-check` 只回读字符串。macOS 使用 Option/Command 显示，Windows 使用 Alt/Win 显示；配置仍保存统一规范化字符串。
 
-桌面「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_STANDARD_API_KEY`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_LOCAL_ADVANCED_MODEL_TIER`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`、`HOTKEY_LIVE_OCR`。四层方法可独立强制选择，本地 Paddle 档位可在 `tiny`、`small` 和 `medium` 间切换；PaddleOCR 设备、API 普通地址/引擎/语言/超时仍是 `.env` 进阶项。两套 API 的地址、密钥和超时不得互拷；不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。macOS 翻译工作区的目标语言栏只更新当前进程，不写配置、不自动调用上游；持久默认仍由设置页的 `TRANSLATE_TARGET_LANG` 保存，设置应用后必须同步工作区栏位。设置页可切换翻译来源和模型；macOS 热键控件录制组合键，Windows 首版填写统一热键字符串。三组热键不得相同。
+桌面「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_STANDARD_API_KEY`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_LOCAL_ADVANCED_MODEL_TIER`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`、`HOTKEY_LIVE_OCR`。四层方法可独立强制选择，本地 Paddle 档位可在 `tiny`、`small` 和 `medium` 间切换；PaddleOCR 设备、API 普通地址/引擎/语言/超时以及两侧 Router 思考开关仍是 `.env` 进阶项。两套 API 的地址、密钥、思考开关和超时不得互拷；不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。macOS 翻译工作区的目标语言栏只更新当前进程，不写配置、不自动调用上游；持久默认仍由设置页的 `TRANSLATE_TARGET_LANG` 保存，设置应用后必须同步工作区栏位。设置页可切换翻译来源和模型；macOS 热键控件录制组合键，Windows 首版填写统一热键字符串。三组热键不得相同。
 
 ## 加载路径
 
@@ -90,7 +91,7 @@ OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `list
 
 不得把 `.env.example` 当作运行配置或设置页写入目标。进程环境里的 `TRANSLATE_*` / `OCR_*` / `HOTKEY_*` 覆盖文件中的同名项。`config-check` 输出 `config.env_file`，便于确认实际读写路径。密钥不得写进 `.app`。
 
-本地高级 PaddleOCR 在进程内懒加载，按页从内存解码图片，不把原图写盘；默认使用 PP-OCRv6 tiny 的检测与识别模型并关闭方向分类、展开和文本行方向三个附加模型。可选依赖未安装时不构造客户端，首次实际初始化可能从官方模型源下载文件。API 普通客户端向 OCR.space 发送 `apikey` 请求头和包含 `base64Image`、`language`、`OCREngine` 的 multipart 表单，发送前限制单张原图不超过 1,000,000 字节，响应体上限为 2,000,000 字节，不记录原图或上游错误详情。API 高级客户端在 `OCR_MODEL=Unlimited-OCR` 时保留其网关合同，发送 `document parsing.` / `Multi page parsing.`、`temperature=0`、`skip_special_tokens=false` 和 `images_config.image_mode`；其它模型发送标准 OpenAI `image_url` 内容、明确的纯文本 OCR 提示、`temperature=0` 与输出 token 上限，不发送 Unlimited-OCR 私有字段。两套 API 的 `httpx` 都使用 `trust_env=false`；识别文本清理版面标记后再交给翻译端口，API 高级响应 `finish_reason=length` 视为失败，不返回残缺正文。
+本地高级 PaddleOCR 在进程内懒加载，按页从内存解码图片，不把原图写盘；默认使用 PP-OCRv6 tiny 的检测与识别模型并关闭方向分类、展开和文本行方向三个附加模型。可选依赖未安装时不构造客户端，首次实际初始化可能从官方模型源下载文件。API 普通客户端向 OCR.space 发送 `apikey` 请求头和包含 `base64Image`、`language`、`OCREngine` 的 multipart 表单，发送前限制单张原图不超过 1,000,000 字节，响应体上限为 2,000,000 字节，不记录原图或上游错误详情。API 高级客户端在 `OCR_MODEL=Unlimited-OCR` 时保留其网关合同，发送 `document parsing.` / `Multi page parsing.`、`temperature=0`、`skip_special_tokens=false` 和 `images_config.image_mode`；其它模型发送标准 OpenAI `image_url` 内容、明确的纯文本 OCR 提示、`temperature=0` 与输出 token 上限，不发送 Unlimited-OCR 私有字段。翻译和 API 高级 OCR 连接默认本机 Router 地址时分别自动附加 `router.thinking=false`；显式配置优先，非 Router 通用地址不自动接收私有字段。两套 API 的 `httpx` 都使用 `trust_env=false`；识别文本清理版面标记后再交给翻译端口，API 高级响应 `finish_reason=length` 视为失败，不返回残缺正文。
 
 ## 主流程与失败边界
 

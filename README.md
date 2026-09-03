@@ -81,9 +81,10 @@ TRANSLATE_TIMEOUT_SECONDS=120
 OCR_BASE_URL=http://127.0.0.1:8000/v1
 OCR_API_KEY=
 OCR_MODEL=auto
+OCR_ROUTER_THINKING=false
 ```
 
-`TRANSLATE_ROUTER_THINKING=false` 会向 `llm-token-router` 显式关闭翻译模型的深度思考，避免短句翻译消耗大量推理 token；省略该项时沿用上游默认。这个字段是 Router 私有开关，连接其它 OpenAI 兼容服务时不要设置。`OCR_MODEL=Unlimited-OCR` 时客户端保留 Unlimited-OCR 的专用提示词与切图参数；其它模型使用标准 OpenAI `image_url` 消息，并明确要求只返回识别文字。修改 `.env` 后重启桌面 App，或在设置页点「应用」立即重建运行时。
+`TRANSLATE_ROUTER_THINKING` 与 `OCR_ROUTER_THINKING` 分别控制翻译和 API 高级 OCR，继续保持两侧独立。连接默认本机 Router 地址 `http://127.0.0.1:8000/v1` 或等价的 `localhost` 地址时，即使省略字段也会显式发送 `thinking=false`；只有写成 `true` 才开启思考。自定义 Router 地址应显式写 `false`；直接连接其它 OpenAI 兼容服务时不要设置，客户端也不会仅凭通用地址发送 Router 私有字段。`OCR_MODEL=Unlimited-OCR` 时客户端保留 Unlimited-OCR 的专用提示词与切图参数；其它模型使用标准 OpenAI `image_url` 消息，并明确要求只返回识别文字。修改 `.env` 后重启桌面 App，或在设置页点「应用」立即重建运行时。
 
 ## 命令行
 

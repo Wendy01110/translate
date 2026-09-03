@@ -4,7 +4,7 @@
 >
 > 创建日期：2026-08-20（Asia/Shanghai）
 >
-> 更新日期：2026-09-01（Asia/Shanghai）
+> 更新日期：2026-09-04（Asia/Shanghai）
 
 ## 目标
 
@@ -80,3 +80,4 @@
 - macOS App 已重新构建并签名，arm64 启动器链接 Homebrew Python 3.13，嵌入的新项目 site-packages 路径、Info.plist 和代码签名检查通过；打开后进程实际从新环境加载并保持运行。
 - Windows 项目 `.env` 已保持 `OCR_ENGINE=auto` 与 PP-OCRv6 tiny，并把 API 高级独立配置到本机 `llm-token-router` 的已验证视觉模型。项目客户端真实识别两行合成图时只返回原文；正式 CLI 强制 API 高级 OCR 和 API 高级 OCR 后 Router 翻译均成功。OCR.space 使用官方公共 `helloworld` 测试 key 的前两次 Engine 2 请求返回 HTTP 503，停止重试后在后续独立复试中 1.969 秒准确识别 `OCR SPACE WINDOWS 2026`；公共 key 始终未写入 `.env`，API 普通层现已有成功真测。
 - Windows 主屏实际鼠标圈选的三行固定文本经 PP-OCRv6 tiny 完整识别并由 Router 翻译；双屏虚拟桌面的副屏负坐标、DPI 96 客户区也准确识别 `SECOND MONITOR OCR 2026`。普通 OCR 与实时 OCR 的桌面首次加载提醒均已实际显示，来源脚注显示「本地高级」，OCR 原文修正后只重跑文本翻译。Windows 端不再缺 API 两层、真实截屏、鼠标圈选或首次提醒证据；剩余验证仅是 macOS 桌面端首次提醒的实际显示。
+- API 高级 OCR 新增独立 `OCR_ROUTER_THINKING`，与翻译侧开关不互借；两条默认本机 Router 路径在省略配置时都显式关闭思考，自定义 Router 可覆盖，普通兼容地址不自动接收私有字段。macOS 实时 OCR 的 Paddle 首次加载提示已改由实时字幕条承接，离线合同已覆盖；实际 macOS 点击级显示仍待复验，因此本计划继续保持进行中。实现与验证见 [macOS 复核与 Router 思考默认关闭记录](../../logs/202609/2026-09-04-macos-review-and-router-thinking-defaults.md)。

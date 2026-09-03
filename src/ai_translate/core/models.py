@@ -97,6 +97,7 @@ class ConfigStatus:
     ocr_standard_max_image_bytes: int = 1_000_000
     ocr_advanced_ready: bool = False
     translate_router_thinking: bool | None = None
+    ocr_router_thinking: bool | None = None
 
 
 @dataclass(frozen=True)

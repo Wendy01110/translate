@@ -91,6 +91,9 @@ class HttpOcrEngine:
                     "images_config": {"image_mode": image_mode},
                 }
             )
+        router_thinking = self._settings.router_thinking_for_request
+        if router_thinking is not None:
+            payload["router"] = {"thinking": router_thinking}
 
         _, body, error = post_chat_completion(
             self._client,

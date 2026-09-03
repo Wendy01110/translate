@@ -4,11 +4,44 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ai_translate.core.hotkeys import format_hotkey_spec, parse_hotkey
+
+
+_LOCAL_ROUTER_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_LOCAL_ROUTER_PORT = 8000
+
+
+def _is_local_llm_token_router_url(value: str) -> bool:
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        return False
+    return (
+        parsed.scheme.lower() == "http"
+        and (parsed.hostname or "").lower() in _LOCAL_ROUTER_HOSTS
+        and port == _LOCAL_ROUTER_PORT
+        and parsed.path.rstrip("/") == "/v1"
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+def _router_thinking_for_request(
+    *,
+    base_url: str,
+    configured: bool | None,
+) -> bool | None:
+    if configured is not None:
+        return configured
+    if _is_local_llm_token_router_url(base_url):
+        return False
+    return None
 
 
 class TranslateSettings(BaseSettings):
@@ -71,6 +104,15 @@ class TranslateSettings(BaseSettings):
     @property
     def api_key_set(self) -> bool:
         return bool(self.api_key.get_secret_value())
+
+    @property
+    def router_thinking_for_request(self) -> bool | None:
+        if self.provider != "openai":
+            return None
+        return _router_thinking_for_request(
+            base_url=self.base_url,
+            configured=self.router_thinking,
+        )
 
 
 OCR_IMAGE_MODES = frozenset({"tiny", "small", "base", "large", "gundam"})
@@ -217,6 +259,7 @@ class OcrSettings(BaseSettings):
     models: str = ""
     timeout_seconds: float = Field(default=180.0, gt=0)
     max_tokens: int = Field(default=24000, gt=0)
+    router_thinking: bool | None = None
     image_mode: str = ""
     engine: str = "auto"
     min_confidence: float = Field(default=0.5, ge=0.0, le=1.0)
@@ -263,6 +306,13 @@ class OcrSettings(BaseSettings):
     @property
     def api_key_set(self) -> bool:
         return bool(self.api_key.get_secret_value())
+
+    @property
+    def router_thinking_for_request(self) -> bool | None:
+        return _router_thinking_for_request(
+            base_url=self.base_url,
+            configured=self.router_thinking,
+        )
 
 
 class StandardOcrSettings(BaseSettings):

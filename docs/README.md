@@ -1,6 +1,6 @@
 # 文档入口
 
-> 更新时间：2026-09-02（Asia/Shanghai）
+> 更新时间：2026-09-04（Asia/Shanghai）
 
 本页是项目维护文档的唯一默认入口，只保留当前状态、活动任务和权威资料路由。面向使用者的最短路径见 [项目 README](../README.md)；日期化事实放在计划或日志，不在本页重复维护。
 
@@ -13,6 +13,7 @@
 - macOS 菜单输入、划词和单次 OCR 已统一到同一个 `OverlayPresenter` / `NSPanel`；内容区不再显示「翻译」大标题，左上直接使用目标语言标签与下拉栏。三种入口的原文均可编辑，译文只读，标题区翻译、图钉、复制、`Command+Return`、目标语言栏、失焦和双屏行为完全共用。临时状态保持只读；OCR 修正文案后只重跑文本翻译，不再次调用 OCR。
 - macOS 统一「翻译」窗口默认 720×520，Windows Qt Quick 工作区默认 800×560；两端都使用宽屏双栏、窄屏上下排列，并让目标语言、翻译、置顶和复制共用顶栏。目标语言切换只更新当前 `DesktopListener`，不自动请求、不直接写配置；设置保存后会反向同步栏位，实时 OCR 的去重记忆也会重置。原独立 macOS 输入窗口和 Windows Tk/pystray UI 已退出活动组合，两端菜单输入分别复用各自的普通翻译工作区。
 - macOS/Windows 普通结果浮窗已支持「置顶/取消置顶」进程内切换：macOS 新结果按鼠标所在显示器居中，未置顶时可进入该屏幕的全屏 Space，但失去焦点后直接收起并在下次查询重新弹出；置顶后加入所有 Space 且不收起。实时字幕条继续固定置顶。macOS 已完成双屏 Fake 原生层级/集合策略验证，用户重开后也确认副屏全屏弹出、失焦收起和再次弹出符合预期；Windows 已实际点击置顶/取消置顶，并用其它窗口核对前后层级恢复。
+- 翻译与 API 高级 OCR 连接默认本机 `llm-token-router` 地址时，客户端分别默认发送 `thinking=false`；显式 `true` 仍可开启，自定义 Router 地址可分别显式配置，普通 OpenAI 兼容地址不会自动收到 Router 私有字段。macOS 与 Windows 的工作区格式已共用同一函数；macOS 实时 OCR 首次加载 Paddle 时，提示现在留在实时字幕条，不再误弹普通翻译窗。
 - 用户在 macOS 本机试用菜单栏 App，报告热键划词和圈选 OCR 基本可用。屏幕实时 OCR 已完成异步圈选、约 0.8 秒目标起点间隔、双屏副屏圈选、动态更新和停止真机验收。Windows Qt 迁移已完成四个 QML 界面、真实控件、150%/200% 缩放、物理圈选坐标、系统托盘可用/可见、正式 `Alt+E` Router 翻译和复制验证；管理员记事本中手动复制后触发普通权限 App 的 UIPI 降级也已真测。翻译 Router 显式关闭思考后，固定短句从 46.212 秒/2387 completion tokens 降到 2.695 秒/6 completion tokens。Windows MVP 已完成，当前没有开放 Issue。
 - 当前只实施 [本地/API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)；[Windows 桌面版 MVP](./plan/completed/2026-08-20-windows-mvp.md) 与 [Windows Qt 桌面 UI 迁移](./plan/completed/2026-09-01-windows-ui-optimization.md) 已完成。系统音频转写仍待进行；其它产品能力见 [TTime 后续计划](./plan/pending/2026-08-19-ttime-inspired-follow-on.md) 的有界历史、划词工具栏与可选剪贴板监听。
 

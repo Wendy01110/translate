@@ -45,7 +45,7 @@ def config_status(settings: Settings) -> ConfigStatus:
         translate_provider=translate.provider,
         translate_base_url=translate.base_url,
         translate_model=translate.model,
-        translate_router_thinking=translate.router_thinking,
+        translate_router_thinking=translate.router_thinking_for_request,
         translate_api_key_set=translate.api_key_set,
         translate_source_lang=translate.source_lang,
         translate_target_lang=translate.target_lang,
@@ -69,6 +69,7 @@ def config_status(settings: Settings) -> ConfigStatus:
         ocr_standard_engine=settings.standard_ocr.engine,
         ocr_standard_max_image_bytes=OCR_SPACE_MAX_IMAGE_BYTES,
         ocr_advanced_ready=ocr.model_ready,
+        ocr_router_thinking=ocr.router_thinking_for_request,
     )
 
 

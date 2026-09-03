@@ -15,6 +15,7 @@ def test_translator_uses_only_translate_settings(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("TRANSLATE_BASE_URL", "https://translate.example/v1")
     monkeypatch.setenv("TRANSLATE_MODEL", "translate-model")
     monkeypatch.setenv("TRANSLATE_API_KEY", "translate-secret")
+    monkeypatch.setenv("TRANSLATE_PROVIDER", "openai")
     monkeypatch.delenv("OCR_BASE_URL", raising=False)
     monkeypatch.delenv("OCR_MODEL", raising=False)
 
@@ -60,6 +61,7 @@ def test_translator_can_explicitly_control_router_thinking(thinking: bool) -> No
         TranslateSettings(
             base_url="http://127.0.0.1:8000/v1",
             model="translate-model",
+            provider="openai",
             router_thinking=thinking,
             _env_file=None,
         ),
@@ -72,6 +74,34 @@ def test_translator_can_explicitly_control_router_thinking(thinking: bool) -> No
 
     assert result.status is JobStatus.SUCCESS
     assert captured["body"]["router"] == {"thinking": thinking}
+
+
+def test_translator_disables_thinking_by_default_for_local_router() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "你好"}}]},
+        )
+
+    translator = HttpTranslator(
+        TranslateSettings(
+            base_url="http://127.0.0.1:8000/v1",
+            model="translate-model",
+            provider="openai",
+            _env_file=None,
+        ),
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = translator.translate(
+        TranslationRequest(text="Hello", source_lang="en", target_lang="zh")
+    )
+
+    assert result.status is JobStatus.SUCCESS
+    assert captured["body"]["router"] == {"thinking": False}
 
 
 def test_ocr_engine_uses_only_ocr_settings(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -108,6 +138,7 @@ def test_ocr_engine_uses_only_ocr_settings(monkeypatch: pytest.MonkeyPatch) -> N
     assert captured["body"]["max_tokens"] == 24000
     assert captured["body"]["skip_special_tokens"] is False
     assert captured["body"]["images_config"] == {"image_mode": "gundam"}
+    assert "router" not in captured["body"]
     assert "vllm_xargs" not in captured["body"]
     assert "custom_logit_processor" not in captured["body"]
     content = captured["body"]["messages"][0]["content"]
@@ -143,6 +174,7 @@ def test_generic_openai_vision_ocr_uses_standard_payload(
     assert body["model"] == "auto"
     assert body["temperature"] == 0
     assert body["max_tokens"] == 24000
+    assert body["router"] == {"thinking": False}
     assert "skip_special_tokens" not in body
     assert "images_config" not in body
     prompt = body["messages"][0]["content"][0]["text"]
@@ -172,6 +204,7 @@ def test_translator_timeout_is_classified() -> None:
     settings = TranslateSettings(
         base_url="https://translate.example/v1",
         model="translate-model",
+        provider="openai",
         _env_file=None,
     )
     translator = HttpTranslator(

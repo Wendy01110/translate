@@ -90,6 +90,7 @@ def test_config_check_masks_secrets_and_exits_zero(capsys) -> None:
         ocr_standard_ready=True,
         ocr_standard_api_key_set=True,
         ocr_advanced_ready=True,
+        ocr_router_thinking=False,
     )
 
     code = run(["config-check"], status)
@@ -102,6 +103,7 @@ def test_config_check_masks_secrets_and_exits_zero(capsys) -> None:
     assert "ocr-secret" not in output
     assert "https://translate.example/v1" in output
     assert "router_thinking: false" in output
+    assert output.count("router_thinking: false") == 2
     assert "https://ocr.example/v1" in output
     assert "https://api.ocr.space/parse/image" in output
 

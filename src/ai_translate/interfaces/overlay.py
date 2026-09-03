@@ -111,10 +111,6 @@ def format_translation_workspace(job: TranslateJob | None = None) -> OverlayCont
     )
 
 
-def format_macos_translation(job: TranslateJob | None = None) -> OverlayContent:
-    return format_translation_workspace(job)
-
-
 def format_status(message: str, source: str = "") -> OverlayContent:
     return OverlayContent(title="翻译", source=source, translation=message, footnote="")
 
@@ -403,10 +399,10 @@ class OverlayPresenter:
         self._impl.show(format_status(message, source=source or ""))
 
     def show(self, job: TranslateJob) -> None:
-        self._impl.show(format_macos_translation(job))
+        self._impl.show(format_translation_workspace(job))
 
     def show_input(self) -> None:
-        content = format_macos_translation()
+        content = format_translation_workspace()
         show_input = getattr(self._impl, "show_input", None)
         if callable(show_input):
             show_input(content)
@@ -793,7 +789,7 @@ class _AppKitBackend:
     def _show_typed_translation(self, job: TranslateJob) -> None:
         self._busy = False
         self._sync_translate_button()
-        content = format_macos_translation(job)
+        content = format_translation_workspace(job)
         if self._window is not None:
             self._window.setTitle_(content.title)
         if self._helper is not None:

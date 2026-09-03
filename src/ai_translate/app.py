@@ -91,7 +91,12 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
     if "listen" in args or "app" in args:
         live_ui = LiveOverlayPresenter()
         presenter = OverlayPresenter()
-        paddle_first_load = _paddle_first_load_notifier(presenter)
+        listener: DesktopListener | None = None
+        paddle_first_load = _paddle_first_load_notifier(
+            presenter,
+            live_presenter=live_ui,
+            live_active=lambda: bool(listener and listener.live_running),
+        )
         listener = DesktopListener(
             selection=selection_service(settings),
             ocr_translate=ocr_translate_service(
@@ -219,13 +224,11 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
     )
     presenter = WindowsOverlayPresenter(runtime)
     live_ui = WindowsLiveOverlayPresenter(runtime)
-    listener_holder: list[DesktopListener] = []
+    listener: DesktopListener | None = None
     paddle_first_load = _paddle_first_load_notifier(
         presenter,
         live_presenter=live_ui,
-        live_active=lambda: bool(
-            listener_holder and listener_holder[0].live_running
-        ),
+        live_active=lambda: bool(listener and listener.live_running),
     )
     listener = DesktopListener(
         selection=selection_service(settings),
@@ -248,7 +251,6 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         capture_rect=rect_capture.capture_rect,
         live_presenter=live_ui,
     )
-    listener_holder.append(listener)
     presenter.set_translate(listener.handle_typed_text)
     presenter.configure_target_languages(
         TARGET_LANG_OPTIONS,

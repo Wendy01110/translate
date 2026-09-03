@@ -55,6 +55,8 @@ def test_macos_input_menu_reuses_the_result_overlay_presenter() -> None:
     assert "presenter.configure_target_languages" in source
     assert "on_change=listener.set_target_lang" in source
     assert "presenter.set_target_language" in source
+    assert "live_presenter=live_ui" in source
+    assert "listener and listener.live_running" in source
 
 
 def test_windows_input_menu_reuses_the_result_overlay_presenter() -> None:
@@ -65,6 +67,8 @@ def test_windows_input_menu_reuses_the_result_overlay_presenter() -> None:
     assert "presenter.configure_target_languages" in source
     assert "on_change=listener.set_target_lang" in source
     assert "presenter.set_target_language" in source
+    assert "live_presenter=live_ui" in source
+    assert "listener and listener.live_running" in source
     assert (
         "can_use_saved_clipboard=windows_clipboard_owned_by_foreground" in source
     )

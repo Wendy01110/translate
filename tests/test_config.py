@@ -101,15 +101,71 @@ def test_default_provider_is_google_web_and_ready() -> None:
     assert settings.ready is True
 
 
-def test_translate_router_thinking_is_optional(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_router_thinking_defaults_off_only_for_local_router(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("TRANSLATE_ROUTER_THINKING", raising=False)
-    assert TranslateSettings(_env_file=None).router_thinking is None
+    monkeypatch.delenv("OCR_ROUTER_THINKING", raising=False)
+
+    translate = TranslateSettings(
+        base_url="http://127.0.0.1:8000/v1",
+        model="translate-model",
+        provider="openai",
+        _env_file=None,
+    )
+    ocr = OcrSettings(
+        base_url="http://localhost:8000/v1/",
+        model="vision-model",
+        _env_file=None,
+    )
+
+    assert translate.router_thinking is None
+    assert translate.router_thinking_for_request is False
+    assert ocr.router_thinking is None
+    assert ocr.router_thinking_for_request is False
+
+
+def test_router_thinking_is_omitted_for_generic_compatible_services() -> None:
+    translate = TranslateSettings(
+        base_url="https://translate.example/v1",
+        model="translate-model",
+        provider="openai",
+        _env_file=None,
+    )
+    ocr = OcrSettings(
+        base_url="https://ocr.example/v1",
+        model="vision-model",
+        _env_file=None,
+    )
+
+    assert translate.router_thinking_for_request is None
+    assert ocr.router_thinking_for_request is None
+
+    builtin_translate = TranslateSettings(
+        base_url="http://127.0.0.1:8000/v1",
+        provider="google_web",
+        _env_file=None,
+    )
+    assert builtin_translate.router_thinking_for_request is None
+
+
+def test_router_thinking_can_be_explicitly_overridden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRANSLATE_BASE_URL", "https://router.example/v1")
+    monkeypatch.setenv("TRANSLATE_MODEL", "translate-model")
+    monkeypatch.setenv("TRANSLATE_PROVIDER", "openai")
 
     monkeypatch.setenv("TRANSLATE_ROUTER_THINKING", "false")
-    assert TranslateSettings(_env_file=None).router_thinking is False
+    assert TranslateSettings(_env_file=None).router_thinking_for_request is False
 
     monkeypatch.setenv("TRANSLATE_ROUTER_THINKING", "true")
-    assert TranslateSettings(_env_file=None).router_thinking is True
+    assert TranslateSettings(_env_file=None).router_thinking_for_request is True
+
+    monkeypatch.setenv("OCR_BASE_URL", "https://router.example/v1")
+    monkeypatch.setenv("OCR_MODEL", "vision-model")
+    monkeypatch.setenv("OCR_ROUTER_THINKING", "true")
+    assert OcrSettings(_env_file=None).router_thinking_for_request is True
 
 
 def test_ocr_image_mode_auto_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:

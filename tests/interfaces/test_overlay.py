@@ -24,7 +24,6 @@ from ai_translate.interfaces.overlay import (
     _set_overlay_pinned,
     _text_view_copy_payload,
     edit_menu_commands,
-    format_macos_translation,
     format_overlay,
     format_translation_workspace,
     normalize_target_language_options,
@@ -180,9 +179,9 @@ def test_overlay_ocr_footnote_marks_local_engine() -> None:
     assert content.source_editable is False
 
 
-def test_macos_translation_workspace_unifies_input_selection_and_ocr() -> None:
-    empty = format_macos_translation()
-    selection = format_macos_translation(
+def test_translation_workspace_unifies_input_selection_and_ocr() -> None:
+    empty = format_translation_workspace()
+    selection = format_translation_workspace(
         TranslateJob(
             kind=JobKind.SELECTION,
             status=JobStatus.SUCCESS,
@@ -190,7 +189,7 @@ def test_macos_translation_workspace_unifies_input_selection_and_ocr() -> None:
             translated_text="你好",
         )
     )
-    ocr = format_macos_translation(
+    ocr = format_translation_workspace(
         TranslateJob(
             kind=JobKind.OCR,
             status=JobStatus.SUCCESS,
