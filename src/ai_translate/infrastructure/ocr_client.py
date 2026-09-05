@@ -10,7 +10,6 @@ from ai_translate.config import OcrSettings
 from ai_translate.core.models import JobStatus, OcrResult
 from ai_translate.infrastructure.ocr_text import clean_ocr_text
 from ai_translate.infrastructure.openai_compat import (
-    chat_completions_url,
     post_chat_completion,
 )
 

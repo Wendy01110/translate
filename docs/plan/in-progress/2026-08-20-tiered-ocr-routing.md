@@ -4,7 +4,7 @@
 >
 > 创建日期：2026-08-20（Asia/Shanghai）
 >
-> 更新日期：2026-09-04（Asia/Shanghai）
+> 更新日期：2026-09-05（Asia/Shanghai）
 
 ## 目标
 
@@ -81,3 +81,4 @@
 - Windows 项目 `.env` 已保持 `OCR_ENGINE=auto` 与 PP-OCRv6 tiny，并把 API 高级独立配置到本机 `llm-token-router` 的已验证视觉模型。项目客户端真实识别两行合成图时只返回原文；正式 CLI 强制 API 高级 OCR 和 API 高级 OCR 后 Router 翻译均成功。OCR.space 使用官方公共 `helloworld` 测试 key 的前两次 Engine 2 请求返回 HTTP 503，停止重试后在后续独立复试中 1.969 秒准确识别 `OCR SPACE WINDOWS 2026`；公共 key 始终未写入 `.env`，API 普通层现已有成功真测。
 - Windows 主屏实际鼠标圈选的三行固定文本经 PP-OCRv6 tiny 完整识别并由 Router 翻译；双屏虚拟桌面的副屏负坐标、DPI 96 客户区也准确识别 `SECOND MONITOR OCR 2026`。普通 OCR 与实时 OCR 的桌面首次加载提醒均已实际显示，来源脚注显示「本地高级」，OCR 原文修正后只重跑文本翻译。Windows 端不再缺 API 两层、真实截屏、鼠标圈选或首次提醒证据；剩余验证仅是 macOS 桌面端首次提醒的实际显示。
 - API 高级 OCR 新增独立 `OCR_ROUTER_THINKING`，与翻译侧开关不互借；两条默认本机 Router 路径在省略配置时都显式关闭思考，自定义 Router 可覆盖，普通兼容地址不自动接收私有字段。macOS 实时 OCR 的 Paddle 首次加载提示已改由实时字幕条承接，离线合同已覆盖；实际 macOS 点击级显示仍待复验，因此本计划继续保持进行中。实现与验证见 [macOS 复核与 Router 思考默认关闭记录](../../logs/202609/2026-09-04-macos-review-and-router-thinking-defaults.md)。
+- 2026-09-05 完成一次整体代码与文档复核：删除未使用的 OCR 工厂转发函数和导入，删除已退出运行时的独立 `interfaces/input_box.py` 及其专属测试，macOS/Windows 设置保存逻辑合并到共享辅助函数，桌面 `app` / `listen` 路径不再重复构造不会直接使用的 CLI OCR、翻译和选择服务，并把桌面分流限制在第一个 CLI 子命令，避免文本或图片参数恰好叫 `app` / `listen` 时误启桌面组合；配置设计改为指向实际的 `config_status()` / `ocr_capability_ready()` 就绪判定。历史计划、日志和视觉稿保留为追溯记录。完整离线套件、`pip check`、编译检查和 `git diff --check` 均通过。实现细节见 [代码与文档复核记录](../../logs/202609/2026-09-05-code-review-and-redundancy-cleanup.md)。

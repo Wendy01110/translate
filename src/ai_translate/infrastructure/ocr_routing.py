@@ -109,21 +109,6 @@ class RoutingOcrEngine:
         return self._remote.recognize_pages(pages)
 
 
-def build_ocr_engine(
-    *,
-    local: OcrEngine | None,
-    remote: OcrEngine | None,
-    mode: str,
-    min_confidence: float,
-) -> RoutingOcrEngine:
-    return RoutingOcrEngine(
-        local=local,
-        remote=remote,
-        mode=mode,
-        min_confidence=min_confidence,
-    )
-
-
 def _acceptable(result: OcrResult, min_confidence: float) -> bool:
     if not _successful(result):
         return False

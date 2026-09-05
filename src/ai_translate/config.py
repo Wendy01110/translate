@@ -129,12 +129,6 @@ TRANSLATE_PROVIDERS = frozenset(
         "deepl_web",
     }
 )
-_OCR_IMAGE_MODES = OCR_IMAGE_MODES
-_OCR_ENGINES = OCR_ENGINES
-_PADDLE_OCR_MODEL_TIERS = PADDLE_OCR_MODEL_TIERS
-_TRANSLATE_PROVIDERS = TRANSLATE_PROVIDERS
-
-
 def user_env_path() -> Path:
     if sys.platform == "win32":
         appdata = (os.environ.get("APPDATA") or "").strip()
@@ -277,7 +271,7 @@ class OcrSettings(BaseSettings):
         cleaned = value.strip().lower()
         if cleaned in {"", "auto"}:
             return ""
-        if cleaned not in _OCR_IMAGE_MODES:
+        if cleaned not in OCR_IMAGE_MODES:
             raise ValueError(
                 "OCR_IMAGE_MODE must be auto, tiny, small, base, large, or gundam"
             )
@@ -289,7 +283,7 @@ class OcrSettings(BaseSettings):
         if not isinstance(value, str):
             return value
         cleaned = value.strip().lower()
-        if cleaned not in _OCR_ENGINES:
+        if cleaned not in OCR_ENGINES:
             raise ValueError(
                 "OCR_ENGINE must be auto, vision, paddle, standard, or model"
             )
@@ -372,7 +366,7 @@ class LocalAdvancedOcrSettings(BaseSettings):
         if not isinstance(value, str):
             return value
         cleaned = value.strip().lower()
-        if cleaned not in _PADDLE_OCR_MODEL_TIERS:
+        if cleaned not in PADDLE_OCR_MODEL_TIERS:
             raise ValueError(
                 "OCR_LOCAL_ADVANCED_MODEL_TIER must be tiny, small, or medium"
             )

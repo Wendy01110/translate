@@ -54,6 +54,8 @@ def test_config_check_does_not_construct_model_clients() -> None:
     assert _needs_runtime(["app"]) is True
     assert _needs_windows_ui(["ocr-translate", "--screenshot"]) is True
     assert _needs_windows_ui(["ocr", "--image", "page.png"]) is False
+    assert _needs_windows_ui(["text", "app"]) is False
+    assert _needs_windows_ui(["ocr", "--image", "listen"]) is False
 
 
 def test_app_config_check_does_not_create_httpx_client(

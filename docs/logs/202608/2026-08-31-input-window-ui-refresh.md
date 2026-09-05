@@ -31,8 +31,8 @@
 
 ## 验证结果
 
-- `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/interfaces/test_input_box.py`：9 passed。
-- `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider tests/interfaces/test_input_box.py tests/interfaces/test_menubar.py tests/test_app.py`：16 passed。
+- 当时的输入窗口定向测试：9 passed；旧输入窗口实现及其专属测试已于 2026-09-05 一并移除。
+- 当时的输入窗口、菜单和 App 定向测试：16 passed；其中旧输入窗口测试已于 2026-09-05 一并移除。
 - `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -p no:cacheprovider`：260 passed in 0.70s。
 - Fake AppKit 原生快照：720×520 空状态、440×520 紧凑状态和 720×520 成功结果均已生成并使用 `view_image` 检查；视觉稿与最终宽屏快照已在同一轮复核。
 - `git diff --check`：通过。
@@ -46,4 +46,4 @@
 ## 后续状态
 
 - 用户后续要求 macOS 输入翻译、划词和单次 OCR 统一为当前划词样式。菜单「输入翻译…」现改为打开同一个 `OverlayPresenter` / `NSPanel`，本日志前述独立输入窗口截图只保留为历史设计证据，不再代表当前运行时组合。
-- 原 `interfaces/input_box.py` WIP 未删除，Windows Tk 输入窗口也未修改；当前 macOS 统一工作区证据见 [普通结果浮窗 UI 纠偏完成日志](./2026-08-31-result-overlay-ui-correction.md)。
+- 原 `interfaces/input_box.py` WIP 当时未删除，后于 2026-09-05 与专属测试一并移除；Windows Tk 输入窗口也未修改。当前 macOS 统一工作区证据见 [普通结果浮窗 UI 纠偏完成日志](./2026-08-31-result-overlay-ui-correction.md)。

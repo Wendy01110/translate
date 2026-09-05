@@ -15,7 +15,7 @@
 | --- | --- |
 | 变量名和仓库示例 | `.env.example` |
 | 默认值、类型和加载 | `src/ai_translate/config.py` |
-| 就绪判定 | `Settings.translate_ready` / `Settings.ocr_ready` |
+| 就绪判定 | `Settings.translate_ready` / `config_status()`（内部使用 `Settings.ocr_capability_ready()`） |
 | 面向用户的最短说明 | 根 `README.md` 的配置节 |
 
 字段清单以代码和 `.env.example` 为准。本文只解释语义和禁止项，不手工维护第二份默认值表。

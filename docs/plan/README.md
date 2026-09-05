@@ -1,6 +1,6 @@
 # 计划状态索引
 
-> 更新时间：2026-09-04（Asia/Shanghai）
+> 更新时间：2026-09-05（Asia/Shanghai）
 
 本页逐条索引全部进行中、待进行和暂时跳过计划，但只保留最近 5 项已完成计划。它不替代 `docs/README.md` 的默认入口，也不复制计划正文。状态变化时移动原计划并同步全部引用：
 
@@ -11,7 +11,7 @@
 
 ## 进行中
 
-- [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：macOS PP-OCRv6 small、Windows 真实圈选 PP-OCRv6 tiny、OCR.space API 普通和 Router API 高级均有成功真测；API 高级 OCR 的 Router 思考默认关闭，macOS 实时首次提醒已改由字幕条承接，仅等待 macOS 桌面首次提醒复验。
+- [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：macOS PP-OCRv6 small、Windows 真实圈选 PP-OCRv6 tiny、OCR.space API 普通和 Router API 高级均有成功真测；API 高级 OCR 的 Router 思考默认关闭，macOS 实时首次提醒已改由字幕条承接，仅等待 macOS 桌面首次提醒复验；2026-09-05 完成代码复核、桌面服务重复构造收口和已退出输入窗口清理。
 
 ## 待进行
 

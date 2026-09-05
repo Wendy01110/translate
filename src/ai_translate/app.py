@@ -29,7 +29,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _needs_runtime(args: Sequence[str]) -> bool:
-    return any(arg in {"ocr", "ocr-translate", "text", "listen", "app"} for arg in args)
+    return bool(args) and args[0] in {"ocr", "ocr-translate", "text", "listen", "app"}
 
 
 def _build_services(settings: Settings, args: Sequence[str]) -> CliServices:
@@ -70,6 +70,30 @@ def _paddle_first_load_notifier(
     return notify
 
 
+def _save_preferences(
+    prefs: AppPreferences,
+    *,
+    listener: DesktopListener,
+    presenter: ResultPresenter,
+    on_paddle_first_load: Callable[[str], None],
+) -> None:
+    upsert_env_values(resolve_env_path(), prefs.to_env())
+    refreshed = Settings.load()
+    listener.replace_runtime(
+        selection=selection_service(refreshed),
+        ocr_translate=ocr_translate_service(
+            refreshed,
+            on_paddle_first_load=on_paddle_first_load,
+        ),
+        source_lang=refreshed.translate.source_lang,
+        target_lang=refreshed.translate.target_lang,
+        selection_hotkey=refreshed.hotkey.selection,
+        ocr_hotkey=refreshed.hotkey.ocr,
+        live_hotkey=refreshed.hotkey.live_ocr,
+    )
+    presenter.set_target_language(refreshed.translate.target_lang)
+
+
 def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliServices:
     from ai_translate.infrastructure.screenshot import RectCapture, RegionScreenshot
     from ai_translate.infrastructure.selected_text import (
@@ -86,9 +110,15 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
         SettingsPresenter,
     )
 
+    selected_text = SelectedTextSource()
+    region_screenshot = RegionScreenshot()
+    command = args[0] if args else ""
+    cli_ocr = None
+    cli_ocr_translate = None
+    cli_selection = None
     start_listener = None
     start_app = None
-    if "listen" in args or "app" in args:
+    if command in {"listen", "app"}:
         live_ui = LiveOverlayPresenter()
         presenter = OverlayPresenter()
         listener: DesktopListener | None = None
@@ -103,17 +133,17 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
                 settings,
                 on_paddle_first_load=paddle_first_load,
             ),
-            read_selected_text=SelectedTextSource().read_selected_text,
-            capture_region=RegionScreenshot().capture_region,
+            read_selected_text=selected_text.read_selected_text,
+            capture_region=region_screenshot.capture_region,
             presenter=presenter,
             selection_hotkey=settings.hotkey.selection,
             ocr_hotkey=settings.hotkey.ocr,
             source_lang=settings.translate.source_lang,
             target_lang=settings.translate.target_lang,
-            event_loop=cocoa_app_loop if "app" in args else None,
+            event_loop=cocoa_app_loop if command == "app" else None,
             accessibility_ready=accessibility_trusted,
             permission_prompt=(
-                request_accessibility_prompt if "app" in args else None
+                request_accessibility_prompt if command == "app" else None
             ),
             live_hotkey=settings.hotkey.live_ocr,
             pick_region=RegionPicker(),
@@ -127,27 +157,15 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
             on_change=listener.set_target_lang,
         )
         live_ui.set_stop(listener.stop_live)
-        if "app" in args:
-            def save_preferences(prefs: AppPreferences) -> None:
-                upsert_env_values(resolve_env_path(), prefs.to_env())
-                refreshed = Settings.load()
-                listener.replace_runtime(
-                    selection=selection_service(refreshed),
-                    ocr_translate=ocr_translate_service(
-                        refreshed,
-                        on_paddle_first_load=paddle_first_load,
-                    ),
-                    source_lang=refreshed.translate.source_lang,
-                    target_lang=refreshed.translate.target_lang,
-                    selection_hotkey=refreshed.hotkey.selection,
-                    ocr_hotkey=refreshed.hotkey.ocr,
-                    live_hotkey=refreshed.hotkey.live_ocr,
-                )
-                presenter.set_target_language(refreshed.translate.target_lang)
-
+        if command == "app":
             settings_ui = SettingsPresenter(
                 load=lambda: Settings.load().preferences(),
-                save=save_preferences,
+                save=lambda prefs: _save_preferences(
+                    prefs,
+                    listener=listener,
+                    presenter=presenter,
+                    on_paddle_first_load=paddle_first_load,
+                ),
             )
 
             def start_app_run() -> int:
@@ -160,13 +178,17 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
             start_app = start_app_run
         else:
             start_listener = listener.run
+    else:
+        cli_ocr = ocr_engine(settings)
+        cli_ocr_translate = ocr_translate_service(settings)
+        cli_selection = selection_service(settings)
     return CliServices(
-        ocr=ocr_engine(settings),
-        ocr_translate=ocr_translate_service(settings),
-        selection=selection_service(settings),
+        ocr=cli_ocr,
+        ocr_translate=cli_ocr_translate,
+        selection=cli_selection,
         load_image=load_image_file,
-        capture_region=RegionScreenshot().capture_region,
-        read_selected_text=SelectedTextSource().read_selected_text,
+        capture_region=region_screenshot.capture_region,
+        read_selected_text=selected_text.read_selected_text,
         start_listener=start_listener,
         start_app=start_app,
         source_lang=settings.translate.source_lang,
@@ -202,7 +224,8 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         pick_region=picker,
         capture_rect=rect_capture.capture_rect,
     )
-    if "listen" not in args and "app" not in args:
+    command = args[0] if args else ""
+    if command not in {"listen", "app"}:
         return CliServices(
             ocr=ocr_engine(settings),
             ocr_translate=ocr_translate_service(settings),
@@ -258,31 +281,18 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         on_change=listener.set_target_lang,
     )
     live_ui.set_stop(listener.stop_live)
-    start_listener = listener.run if "listen" in args else None
+    start_listener = listener.run if command == "listen" else None
     start_app = None
-    if "app" in args:
-
-        def save_preferences(prefs: AppPreferences) -> None:
-            upsert_env_values(resolve_env_path(), prefs.to_env())
-            refreshed = Settings.load()
-            listener.replace_runtime(
-                selection=selection_service(refreshed),
-                ocr_translate=ocr_translate_service(
-                    refreshed,
-                    on_paddle_first_load=paddle_first_load,
-                ),
-                source_lang=refreshed.translate.source_lang,
-                target_lang=refreshed.translate.target_lang,
-                selection_hotkey=refreshed.hotkey.selection,
-                ocr_hotkey=refreshed.hotkey.ocr,
-                live_hotkey=refreshed.hotkey.live_ocr,
-            )
-            presenter.set_target_language(refreshed.translate.target_lang)
-
+    if command == "app":
         settings_ui = WindowsSettingsPresenter(
             runtime,
             load=lambda: Settings.load().preferences(),
-            save=save_preferences,
+            save=lambda prefs: _save_preferences(
+                prefs,
+                listener=listener,
+                presenter=presenter,
+                on_paddle_first_load=paddle_first_load,
+            ),
         )
         instance = WindowsInstanceLock()
 
@@ -298,9 +308,6 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
 
         start_app = start_app_run
     return CliServices(
-        ocr=ocr_engine(settings),
-        ocr_translate=ocr_translate_service(settings),
-        selection=selection_service(settings),
         load_image=load_image_file,
         capture_region=region_capture.capture_region,
         read_selected_text=selected_text.read_selected_text,
@@ -312,7 +319,12 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
 
 
 def _needs_windows_ui(args: Sequence[str]) -> bool:
-    return any(arg in {"listen", "app", "--screenshot"} for arg in args)
+    if not args:
+        return False
+    command = args[0]
+    return command in {"listen", "app"} or (
+        command in {"ocr", "ocr-translate"} and "--screenshot" in args[1:]
+    )
 
 
 if __name__ == "__main__":
