@@ -25,7 +25,6 @@
 
 ## 当前工作
 
-- [项目复核、异常响应收口与 Git 交付](./plan/in-progress/2026-10-06-project-review-and-git-delivery.md)
 - [本地与 API 四层 OCR 分流](./plan/in-progress/2026-08-20-tiered-ocr-routing.md)
 
 ## 按任务查找

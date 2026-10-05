@@ -11,7 +11,6 @@
 
 ## 进行中
 
-- [项目复核、异常响应收口与 Git 交付](./in-progress/2026-10-06-project-review-and-git-delivery.md)：复核累积 WIP，收口过深 JSON 与 DeepL 响应类型失败，完成离线测试和文档后提交推送；真实桌面 OCR 验收单独确认。
 - [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：macOS PP-OCRv6 small、Windows 真实圈选 PP-OCRv6 tiny、OCR.space API 普通和 Router API 高级均有成功真测；API 高级 OCR 的 Router 思考默认关闭，macOS 实时首次提醒已改由字幕条承接，仅等待 macOS 桌面首次提醒复验；2026-09-05 完成代码复核、桌面服务重复构造收口和已退出输入窗口清理。
 
 ## 待进行
@@ -25,10 +24,10 @@
 
 ## 最近完成
 
+- [项目复核、异常响应收口与 Git 交付](./completed/2026-10-06-project-review-and-git-delivery.md)：审阅并提交累积稳定性修复，补齐全部翻译与 API 高级 OCR 的过深 JSON、DeepL 响应类型失败；完整离线 534 项、文档 6 项、CLI 静态回读和依赖检查通过，代码已推送并回读 SHA；macOS 真机验收仍在原 OCR 计划中等待授权。
 - [OCR.space 异常响应与自动降级](./completed/2026-10-05-ocr-space-response-failures.md)：普通层异常状态字段与过深 JSON 稳定失败，自动模式继续高级并只翻译其文字，强制普通模式停止；定向 69 项、完整离线 520 项通过，真实提供方与桌面未在本轮验收。
 - [OCR 多页输入边界](./completed/2026-10-03-ocr-batch-input-bounds.md)：单次最多 10 页与合计 20 MiB，CLI 首次超限停止继续读文件，用例/路由/四层适配在初始化/编码/请求前共同拒绝；定向 184 项、完整离线 498 项通过，真实桌面与提供方未在本轮验收。
 - [划词系统命令失败归类](./completed/2026-10-03-selection-command-failures.md)：macOS 剪贴板与模拟复制的启动、超时、编解码失败进入既有界面错误结果，覆盖恢复失败和故障解除后再次触发；定向 78 项、完整离线 436 项通过，真实桌面与剪贴板未在本轮验收。
 - [实时 OCR 圈选会话隔离](./completed/2026-10-03-live-picker-lifecycle.md)：圈选代次提前预留，旧回调和旧启动不影响重开会话，设置应用取消未完成圈选；桌面相关 108 项、完整离线 407 项通过，真实桌面与模型未在本轮验收。
-- [图像输入与截屏边界优化](./completed/2026-10-03-image-source-bounds.md)：按先文档后代码执行，补齐图片有界读取、macOS 截图失败归类和两端区域坐标面积前置检查；完整离线套件 399 项通过，保留已有 WIP，未做真实截图或模型验收。
 
 完整已完成计划见 [completed/](./completed/)，对应完成日志见 [../logs/](../logs/)。默认索引不逐条重复历史记录；需要追溯旧状态时，再按日期打开对应文件或查看 Git 历史。

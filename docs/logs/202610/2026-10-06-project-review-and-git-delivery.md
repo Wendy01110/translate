@@ -2,7 +2,7 @@
 
 > 日期：2026-10-06（Asia/Shanghai）
 >
-> 结果：代码复核与离线验证通过，Git 交付准备完成；macOS 首次 OCR 提醒真实验收仍待本次授权
+> 结果：代码复核与离线验证通过，代码已提交推送并回读远端 SHA；macOS 首次 OCR 提醒真实验收仍待本次授权
 
 ## 当前进度与范围
 
@@ -30,6 +30,8 @@ Requester 要求检查项目、完成必要工作、测试、同步文档、提�
 | 依赖 | `.venv/bin/python -m pip check`：未发现依赖冲突 |
 | CLI 静态回读 | 当前版本 `0.1.0`、OCR 帮助 10 页/20 MiB、临时配置路径与独立就绪状态通过；三个 API key 均为 `unset`，无上游调用 |
 | 差异格式 | `git diff --check` 通过 |
+| 文档收尾 | `tests/docs` 6 项通过，计划原文件状态移动与引用一致 |
+| 暂存范围 | 69 个文件的暂存路径、暂存内容及工作区内容与已审阅哈希完全一致；67 个原 WIP 路径全部保留，无意外新增或并发变化 |
 
 ## 对抗复核与未验证边界
 
@@ -39,6 +41,8 @@ Requester 要求检查项目、完成必要工作、测试、同步文档、提�
 
 ## Git 交付
 
-当前分支为 `main`，远端为 `https://github.com/Wendy01110/translate.git`。远端 `main` 读取为 `b485677c6bf86626b983be1b2b812d239667f550`，与本地 `origin/main` 一致；本地已有 `c140bfd` 和 `73dd0a1` 两个待推送提交，本次推送包含它们。默认 Git HTTP 连接首次出现 TLS 连接错误，单次命令使用 `http.version=HTTP/1.1` 后成功读取远端，不改全局配置或系统代理。提交和推送的实际结果在执行后补记。
+当前分支为 `main`，远端为 `https://github.com/Wendy01110/translate.git`。提交前远端 `main` 为 `b485677c6bf86626b983be1b2b812d239667f550`，与本地 `origin/main` 一致；本地已有 `c140bfd` 和 `73dd0a1` 两个待推送提交，本次推送包含它们。默认 Git HTTP 连接首次出现 TLS 连接错误，单次命令使用 `http.version=HTTP/1.1` 后成功读取远端，不改全局配置或系统代理。
 
-对应 [本轮计划](../../plan/in-progress/2026-10-06-project-review-and-git-delivery.md)；原 [四层 OCR 计划](../../plan/in-progress/2026-08-20-tiered-ocr-routing.md) 仍保持进行中。
+已创建提交 `20d6a128ee4b6796f3c2d10f3f8c549b03d7a591`（`fix: 完善桌面翻译与 OCR 失败边界`），实际执行普通快进 `push origin main:main` 成功，远端从 `b485677` 前进到 `20d6a12`。随后 `ls-remote --heads origin main` 回读同一完整 SHA，核对本地 HEAD 与远端一致，提交后工作区为空。未进行 merge、rebase 或强推；本段记录这次已执行的代码交付，计划归档和日志补记将随文档收尾提交同步。
+
+对应 [已完成的本轮计划](../../plan/completed/2026-10-06-project-review-and-git-delivery.md)；原 [四层 OCR 计划](../../plan/in-progress/2026-08-20-tiered-ocr-routing.md) 仍保持进行中。
