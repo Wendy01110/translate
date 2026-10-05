@@ -34,4 +34,4 @@
 
 本轮快照在 `/private/tmp/translate-ocr-space-response-20261005-malf9nvy`，包含初始 Git 状态、WIP 哈希与 7 个相关文件副本。最终范围是这 7 个已有文件及本计划/日志，不暂存、提交或混入其它已有改动。
 
-未执行真实 OCR/翻译、截图、剪贴板/选区访问、用户按键、Paddle 初始化/下载、依赖变更、真实 `.env` 修改、App/服务重启、Git 提交/推送、发布或部署。没有本轮必需的额外受控动作；原 [四层 OCR 计划](../../plan/in-progress/2026-08-20-tiered-ocr-routing.md) 仍只等待 macOS 桌面首次加载提醒复验，本次离线证据不替代该验收。
+未执行真实 OCR/翻译、截图、剪贴板/选区访问、用户按键、Paddle 初始化/下载、依赖变更、真实 `.env` 修改、App/服务重启、Git 提交/推送、发布或部署。没有本轮必需的额外受控动作；原 [四层 OCR 计划](../../plan/completed/2026-08-20-tiered-ocr-routing.md) 仍只等待 macOS 桌面首次加载提醒复验，本次离线证据不替代该验收。

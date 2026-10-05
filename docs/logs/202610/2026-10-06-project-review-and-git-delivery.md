@@ -45,4 +45,4 @@ Requester 要求检查项目、完成必要工作、测试、同步文档、提�
 
 已创建提交 `20d6a128ee4b6796f3c2d10f3f8c549b03d7a591`（`fix: 完善桌面翻译与 OCR 失败边界`），实际执行普通快进 `push origin main:main` 成功，远端从 `b485677` 前进到 `20d6a12`。随后 `ls-remote --heads origin main` 回读同一完整 SHA，核对本地 HEAD 与远端一致，提交后工作区为空。未进行 merge、rebase 或强推；本段记录这次已执行的代码交付，计划归档和日志补记将随文档收尾提交同步。
 
-对应 [已完成的本轮计划](../../plan/completed/2026-10-06-project-review-and-git-delivery.md)；原 [四层 OCR 计划](../../plan/in-progress/2026-08-20-tiered-ocr-routing.md) 仍保持进行中。
+对应 [已完成的本轮计划](../../plan/completed/2026-10-06-project-review-and-git-delivery.md)；原 [四层 OCR 计划](../../plan/completed/2026-08-20-tiered-ocr-routing.md) 仍保持进行中。

@@ -56,6 +56,8 @@ bootstrap -> features + infrastructure + interfaces + core
 
 `bootstrap.DesktopRuntime` 持有桌面翻译客户端、OCR 组合及两个业务用例，按翻译/OCR 两侧请求配置分别更新；未改变请求配置时复用实例，保留 Paddle 懒加载状态。语言、热键和模型候选列表不参与客户端重建判断；语言继续通过翻译请求传入。两个业务用例使用同一个翻译客户端，界面层只负责应用已组合的运行时。
 
+普通 CLI 按首个子命令构造服务：`text` 仅构造文本翻译用例，`ocr` 仅构造 OCR 端口，`ocr-translate` 仅构造 OCR 翻译用例。通用入口、macOS CLI 与 Windows 截图 CLI 复用 `app.py` 的同一处公共构造，平台只补充截图/选区回调；不为未使用的路径重复创建 OCR 组合或翻译客户端。`app` / `listen` 继续使用桌面共享运行时，参数文本或图片路径中的同名词不参与命令分流。
+
 实时圈选与循环生命周期由 `DesktopListener` 维护，发起圈选时即预留会话代次，平台排队启动与回调都只作用于当前代次。停止或设置替换使旧圈选失效，迟到结果和旧 worker 退出不能回写新会话；设置替换同时取消尚未完成的圈选和已运行循环。工作区目标语言栏切换仍以不可变记忆快照使在途结果失效，保留当前循环。详细状态规则见 [屏幕实时 OCR](./live-screen-ocr.md)。
 
 翻译长度、图片字节、OCR 页数/累计字节和固定区域面积常量放在 `core/limits.py`；翻译长度由用例和客户端共同执行，OCR 后翻译超限保留原文并返回 `partial`。`core/ocr_input.py` 的纯函数统一检查空图、单张 20 MiB、最多 10 页和整批合计 20 MiB；CLI、OCR 翻译用例、路由与各 OCR 适配复用该检查，超限不启动 OCR、本地模型初始化或上游编码/请求，也不继续分流。CLI 先检查页数，再逐张读取并检查累计预算，超限不再读取后续文件。图片文件与 macOS 单次截图继续共用 `infrastructure/image_file.py` 的有界读取，两端固定区域截屏在抓图前检查有限坐标及面积。区域坐标单位和失败语义见 [OCR 分流](./ocr-routing.md)。`infrastructure/http_response.py` 统一限制最终 HTTP 响应进入解析前的解码后字节数，超限时关闭流并向上返回稳定错误码，用户提示仍由界面层决定。

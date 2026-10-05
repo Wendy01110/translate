@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 
 from ai_translate.bootstrap.composition import (
     DesktopRuntime,
@@ -38,14 +39,17 @@ def _build_services(settings: Settings, args: Sequence[str]) -> CliServices:
         return _build_windows_services(settings, args)
     if sys.platform == "darwin":
         return _build_macos_services(settings, args)
-    return _common_services(settings)
+    return _common_services(settings, args)
 
 
-def _common_services(settings: Settings) -> CliServices:
+def _common_services(settings: Settings, args: Sequence[str]) -> CliServices:
+    command = args[0] if args else ""
     return CliServices(
-        ocr=ocr_engine(settings),
-        ocr_translate=ocr_translate_service(settings),
-        selection=selection_service(settings),
+        ocr=ocr_engine(settings) if command == "ocr" else None,
+        ocr_translate=(
+            ocr_translate_service(settings) if command == "ocr-translate" else None
+        ),
+        selection=selection_service(settings) if command == "text" else None,
         load_image=load_image_file,
         source_lang=settings.translate.source_lang,
         target_lang=settings.translate.target_lang,
@@ -59,14 +63,14 @@ def _paddle_first_load_notifier(
     live_active: Callable[[], bool] | None = None,
 ) -> Callable[[str], None]:
     def notify(model: str) -> None:
-        target = presenter
         if (
             live_presenter is not None
             and live_active is not None
             and live_active()
         ):
-            target = live_presenter
-        target.show_status(paddle_first_load_message(model))
+            live_presenter.show_status(paddle_first_load_message(model, compact=True))
+            return
+        presenter.show_status(paddle_first_load_message(model))
 
     return notify
 
@@ -112,9 +116,6 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
     selected_text = SelectedTextSource()
     region_screenshot = RegionScreenshot()
     command = args[0] if args else ""
-    cli_ocr = None
-    cli_ocr_translate = None
-    cli_selection = None
     start_listener = None
     start_app = None
     if command in {"listen", "app"}:
@@ -176,13 +177,12 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
         else:
             start_listener = listener.run
     else:
-        cli_ocr = ocr_engine(settings)
-        cli_ocr_translate = ocr_translate_service(settings)
-        cli_selection = selection_service(settings)
+        return replace(
+            _common_services(settings, args),
+            capture_region=region_screenshot.capture_region,
+            read_selected_text=selected_text.read_selected_text,
+        )
     return CliServices(
-        ocr=cli_ocr,
-        ocr_translate=cli_ocr_translate,
-        selection=cli_selection,
         load_image=load_image_file,
         capture_region=region_screenshot.capture_region,
         read_selected_text=selected_text.read_selected_text,
@@ -223,14 +223,9 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
     )
     command = args[0] if args else ""
     if command not in {"listen", "app"}:
-        return CliServices(
-            ocr=ocr_engine(settings),
-            ocr_translate=ocr_translate_service(settings),
-            selection=selection_service(settings),
-            load_image=load_image_file,
+        return replace(
+            _common_services(settings, args),
             capture_region=region_capture.capture_region,
-            source_lang=settings.translate.source_lang,
-            target_lang=settings.translate.target_lang,
         )
 
     clipboard = WindowsClipboard()

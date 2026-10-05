@@ -1,6 +1,6 @@
 # 本地与 API 四层 OCR 分流计划
 
-> 状态：进行中
+> 状态：已完成
 >
 > 创建日期：2026-08-20（Asia/Shanghai）
 >
@@ -10,13 +10,13 @@
 
 把 OCR 明确分为本地普通、本地高级、API 普通和 API 高级四层。macOS Vision 继续作为本地普通层；PP-OCRv6 作为 macOS/Windows 共用的可选本地高级层；OCR.space 与现有 Unlimited-OCR 分别作为 API 普通和 API 高级层。翻译端口、结果契约和 OCR 后翻译语义保持不变。
 
-## 当前依据
+## 任务开始时依据
 
 - 当前 `OCR_STANDARD_*` 与 OCR.space 客户端已实现 API 普通层，现有 `OCR_*` 与 `HttpOcrEngine` 继续作为 API 高级层并保持当前 `.env` 兼容。
 - [PaddleOCR 官方 PP-OCRv6 说明](https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/algorithm/PP-OCRv6/PP-OCRv6.en.md)提供 tiny、small、medium 三档，并给出 macOS、Windows、Linux 和 CPU 支持；small 定位移动/桌面平衡档。
 - [PaddleOCR 官方 Python 用法](https://www.paddleocr.ai/main/en/version3.x/pipeline_usage/OCR.html)通过 `PaddleOCR.predict()` 返回 `rec_texts` 与 `rec_scores`，可以适配现有 `OcrResult` 而不改变 core 端口。
 - 当前项目 `.venv` 已切换为 Python 3.13.14 arm64，并安装 PaddleOCR 3.7.0 与 PaddlePaddle 3.3.0；原 Python 3.14 环境保留在项目内备份目录，未删除。
-- 当前工作区同时有 Windows MVP、实时 OCR 和 macOS 图标/构建 WIP，本计划只扩展 OCR 分流、必要设置和对应文档，不覆盖其它改动。
+- 2026-08-20 开始时工作区同时有 Windows MVP、实时 OCR 和 macOS 图标/构建 WIP，本计划只扩展 OCR 分流、必要设置和对应文档，不覆盖其它改动。
 
 ## 范围与非目标
 
@@ -56,7 +56,7 @@
 - `auto` 的顺序和停止条件可由 Fake 端口验证；本地高级成功时不调用 API，API 普通成功时不调用 API 高级。
 - 四种强制单层模式可分别验证；现有 `OCR_ENGINE=standard` 与 `model` 行为保持不变。
 - `config-check` 能区分本地普通、本地高级、API 普通和 API 高级的静态状态，但不把静态就绪声明为真实识别成功。
-- macOS PP-OCRv6 small 与 Windows PP-OCRv6 tiny 本地图片真实样例已经通过；Windows 真实屏幕圈选、桌面首次提醒与 API 两层也已完成。计划仅因 macOS 桌面首次提醒仍缺点击级显示证据而保持进行中，不能把其中一端的证据替代另一端。
+- macOS PP-OCRv6 small 与 Windows PP-OCRv6 tiny 本地图片真实样例已经通过；Windows 真实屏幕圈选、桌面首次提醒与 API 两层也已完成。macOS 最后一项首次提醒已通过原生菜单 action、缓存模型和真实窗口绘制的隔离验收；普通与实时各提醒一次，最窄字幕条完整显示短提示，实时路径不弹普通窗口。该证据不等于安装 App 的物理菜单点击、热键、真实截屏或外部提供方复验，不能把其中一端的证据替代另一端。
 
 ## 授权与停止边界
 
@@ -80,7 +80,8 @@
 - macOS App 已重新构建并签名，arm64 启动器链接 Homebrew Python 3.13，嵌入的新项目 site-packages 路径、Info.plist 和代码签名检查通过；打开后进程实际从新环境加载并保持运行。
 - Windows 项目 `.env` 已保持 `OCR_ENGINE=auto` 与 PP-OCRv6 tiny，并把 API 高级独立配置到本机 `llm-token-router` 的已验证视觉模型。项目客户端真实识别两行合成图时只返回原文；正式 CLI 强制 API 高级 OCR 和 API 高级 OCR 后 Router 翻译均成功。OCR.space 使用官方公共 `helloworld` 测试 key 的前两次 Engine 2 请求返回 HTTP 503，停止重试后在后续独立复试中 1.969 秒准确识别 `OCR SPACE WINDOWS 2026`；公共 key 始终未写入 `.env`，API 普通层现已有成功真测。
 - Windows 主屏实际鼠标圈选的三行固定文本经 PP-OCRv6 tiny 完整识别并由 Router 翻译；双屏虚拟桌面的副屏负坐标、DPI 96 客户区也准确识别 `SECOND MONITOR OCR 2026`。普通 OCR 与实时 OCR 的桌面首次加载提醒均已实际显示，来源脚注显示「本地高级」，OCR 原文修正后只重跑文本翻译。Windows 端不再缺 API 两层、真实截屏、鼠标圈选或首次提醒证据；剩余验证仅是 macOS 桌面端首次提醒的实际显示。
-- API 高级 OCR 新增独立 `OCR_ROUTER_THINKING`，与翻译侧开关不互借；两条默认本机 Router 路径在省略配置时都显式关闭思考，自定义 Router 可覆盖，普通兼容地址不自动接收私有字段。macOS 实时 OCR 的 Paddle 首次加载提示已改由实时字幕条承接，离线合同已覆盖；实际 macOS 点击级显示仍待复验，因此本计划继续保持进行中。实现与验证见 [macOS 复核与 Router 思考默认关闭记录](../../logs/202609/2026-09-04-macos-review-and-router-thinking-defaults.md)。
+- 2026-09-04 API 高级 OCR 新增独立 `OCR_ROUTER_THINKING`，与翻译侧开关不互借；两条默认本机 Router 路径在省略配置时都显式关闭思考，自定义 Router 可覆盖，普通兼容地址不自动接收私有字段。macOS 实时 OCR 的 Paddle 首次加载提示已改由实时字幕条承接，离线合同已覆盖；当时实际 macOS 显示仍待复验，因此计划保持进行中。实现与验证见 [macOS 复核与 Router 思考默认关闭记录](../../logs/202609/2026-09-04-macos-review-and-router-thinking-defaults.md)，最后一项原生提醒显示已在下述 2026-10-06 验收中闭合。
 - 2026-09-05 完成一次整体代码与文档复核：删除未使用的 OCR 工厂转发函数和导入，删除已退出运行时的独立 `interfaces/input_box.py` 及其专属测试，macOS/Windows 设置保存逻辑合并到共享辅助函数，桌面 `app` / `listen` 路径不再重复构造不会直接使用的 CLI OCR、翻译和选择服务，并把桌面分流限制在第一个 CLI 子命令，避免文本或图片参数恰好叫 `app` / `listen` 时误启桌面组合；配置设计改为指向实际的 `config_status()` / `ocr_capability_ready()` 就绪判定。历史计划、日志和视觉稿保留为追溯记录。完整离线套件、`pip check`、编译检查和 `git diff --check` 均通过。实现细节见 [代码与文档复核记录](../../logs/202609/2026-09-05-code-review-and-redundancy-cleanup.md)。
 - 2026-09-22 桌面设置改为按翻译/OCR 请求配置分别更新运行时；只改语言、热键或候选列表时保留已加载 Paddle，Fake pipeline 与设置保存路径已有离线验证。最终 HTTP 响应有界读取与 OCR 后翻译长度检查同步完成，见[优化记录](../../logs/202609/2026-09-22-runtime-reuse-and-request-bounds.md)。本次未做 macOS 真实桌面首次提醒复验，不改变该剩余验收状态。
-- 2026-10-06 复核并验证累积的实时会话、截屏/剪贴板与 OCR 输入边界修复，补齐全部翻译来源和 API 高级 OCR 的过深 JSON 错误归类及 DeepL 响应类型检查；完整离线 534 项通过，静态 CLI 回读和依赖检查通过，详见[项目复核记录](../../logs/202610/2026-10-06-project-review-and-git-delivery.md)。macOS 首次提醒验收脚本已准备为合成图片、缓存 small 模型、禁用网络及 Fake 翻译的隔离验证，仍等待本次真实 OCR 授权；未执行前继续保持本计划进行中。
+- 2026-10-06 复核并验证累积的实时会话、截屏/剪贴板与 OCR 输入边界修复，补齐全部翻译来源和 API 高级 OCR 的过深 JSON 错误归类及 DeepL 响应类型检查；完整离线 534 项通过，静态 CLI 回读和依赖检查通过，详见[项目复核记录](../../logs/202610/2026-10-06-project-review-and-git-delivery.md)。随后 Requester 要求“先验证好”，继续执行此前准备的合成图片、缓存 small 模型、禁用网络及 Fake 翻译的隔离原生验收；不读取屏幕或剪贴板，不下载模型、不改真实配置、不重启已有 App。
+- 2026-10-06 macOS 普通与实时路径均从原生菜单 action 经监听器实际加载缓存 small 模型，准确识别 `LOCAL OCR REMINDER CHECK 2026`，首次提醒各触发一次；实时提醒未打开普通翻译窗口。原生内容绘制复核发现实时字幕条把长提醒截成一行，已为字幕条提供简短提示，普通工作区保留模型及下载说明；最小 280 宽度下字体测量与绘制回读均确认提示完整可见。定向 63 项、完整离线 535 项、依赖检查及 diff 检查通过。至此四层 OCR 的约定实现和最后一项实际提醒显示验收完成，原计划移至 `completed/`；安装 App 的物理热键、截屏和外部提供方未在本轮复验。结论与边界见[原生首次提醒验收记录](../../logs/202610/2026-10-06-native-ocr-reminder-verification.md)。

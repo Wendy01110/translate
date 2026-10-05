@@ -127,7 +127,9 @@ def format_status(message: str, source: str = "") -> OverlayContent:
     return OverlayContent(title="翻译", source=source, translation=message, footnote="")
 
 
-def paddle_first_load_message(model: str) -> str:
+def paddle_first_load_message(model: str, *, compact: bool = False) -> str:
+    if compact:
+        return "本地 OCR 首次加载中，请稍候…"
     return (
         f"正在首次加载本地 OCR 模型 {model}。"
         "若本机尚无缓存，将自动下载，可能需要一些时间；后续识别通常会更快。"

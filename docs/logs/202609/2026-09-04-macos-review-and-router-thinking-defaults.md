@@ -2,7 +2,7 @@
 
 > 日期：2026-09-04（Asia/Shanghai）
 >
-> 关联计划：[本地与 API 四层 OCR 分流](../../plan/in-progress/2026-08-20-tiered-ocr-routing.md)
+> 关联计划：[本地与 API 四层 OCR 分流](../../plan/completed/2026-08-20-tiered-ocr-routing.md)
 
 ## 范围与结论
 
