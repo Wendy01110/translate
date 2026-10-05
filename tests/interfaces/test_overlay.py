@@ -75,6 +75,20 @@ def test_translation_workspace_makes_ocr_source_editable_for_manual_retry() -> N
     assert content.source_editable is True
 
 
+def test_translation_workspace_explains_truncated_translation() -> None:
+    content = format_translation_workspace(
+        TranslateJob(
+            kind=JobKind.SELECTION,
+            status=JobStatus.FAILURE,
+            source_text="Synthetic input",
+            translated_text=None,
+            error="translate_output_truncated",
+        )
+    )
+    assert content.translation == "译文未生成完整，请缩短原文后重试。"
+    assert content.source_editable is True
+
+
 def test_paddle_first_load_message_sets_download_expectation() -> None:
     message = paddle_first_load_message("PP-OCRv6_tiny")
 
@@ -266,6 +280,23 @@ def test_overlay_failure_puts_error_in_translation() -> None:
     assert content.title == "划词失败"
     assert content.source == "Hello"
     assert content.translation == "timeout"
+
+
+def test_overlay_explains_ocr_input_budgets() -> None:
+    for error, limit in (
+        ("image_too_large", "20 MiB"),
+        ("ocr_batch_too_large", "20 MiB"),
+        ("ocr_too_many_pages", "10 页"),
+    ):
+        content = format_overlay(
+            TranslateJob(
+                kind=JobKind.OCR, status=JobStatus.FAILURE,
+                source_text=None, translated_text=None, error=error,
+            )
+        )
+        assert limit in content.translation
+        assert error not in content.translation
+        assert content.source == ""
 
 
 def test_overlay_explains_missing_accessibility() -> None:
@@ -580,7 +611,7 @@ def test_appkit_overlay_toggle_updates_level_button_and_process_state(
     assert window.front_count == 2
 
 
-def test_unpinned_overlay_hides_after_losing_key_status() -> None:
+def test_overlay_stays_visible_after_losing_key_status() -> None:
     class _Window:
         def __init__(self) -> None:
             self.order_out_count = 0
@@ -593,16 +624,19 @@ def test_unpinned_overlay_hides_after_losing_key_status() -> None:
     backend._window = window
     backend._pinned = False
     backend._needs_focus = False
-    backend._handling_resign_key = False
+    backend._busy = True
 
     backend.window_did_resign_key()
 
-    assert window.order_out_count == 1
+    assert window.order_out_count == 0
     assert backend._needs_focus is True
+    assert backend._busy is True
 
     backend._pinned = True
+    backend._needs_focus = False
     backend.window_did_resign_key()
-    assert window.order_out_count == 1
+    assert window.order_out_count == 0
+    assert backend._needs_focus is False
 
 
 def test_appkit_overlay_copy_button_copies_translation_only(monkeypatch) -> None:

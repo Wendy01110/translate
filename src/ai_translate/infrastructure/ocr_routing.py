@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ai_translate.core.models import JobStatus, OcrResult
+from ai_translate.core.ocr_input import ocr_pages_error
 from ai_translate.core.ports import OcrEngine
 from ai_translate.infrastructure.ocr_space import OCR_SPACE_MAX_IMAGE_BYTES
 
@@ -23,6 +24,9 @@ class TieredLocalOcrEngine:
         return self.recognize_pages([(image_bytes, mime_type)])
 
     def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
+        error = ocr_pages_error(pages)
+        if error:
+            return _failure(error)
         standard_result: OcrResult | None = None
         if self._standard is not None:
             standard_result = self._standard.recognize_pages(pages)
@@ -49,6 +53,9 @@ class TieredRemoteOcrEngine:
         return self.recognize_pages([(image_bytes, mime_type)])
 
     def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
+        error = ocr_pages_error(pages)
+        if error:
+            return _failure(error)
         standard_result: OcrResult | None = None
         if self._standard is not None and self._is_standard_candidate(pages):
             standard_result = self._standard.recognize_pages(pages)
@@ -87,6 +94,9 @@ class RoutingOcrEngine:
         return self.recognize_pages([(image_bytes, mime_type)])
 
     def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
+        error = ocr_pages_error(pages)
+        if error:
+            return _failure(error)
         if self._mode in {"model", "standard"}:
             return self._require_remote(pages)
         local_result = self._try_local(pages)

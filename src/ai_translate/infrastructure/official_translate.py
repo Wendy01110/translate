@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import html
+import json
 from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 
 from ai_translate.config import TranslateSettings
+from ai_translate.core.limits import MAX_TRANSLATION_CHARS
 from ai_translate.core.models import JobStatus, TranslationRequest, TranslationResult
+from ai_translate.infrastructure.http_response import (
+    ResponseTooLarge,
+    read_bounded_response,
+)
 
-_MAX_TEXT_CHARS = 8000
 _DEEPL_DEFAULT = "https://api-free.deepl.com"
 _MICROSOFT_DEFAULT = "https://api.cognitive.microsofttranslator.com"
 _GOOGLE_DEFAULT = "https://translation.googleapis.com/language/translate/v2"
@@ -56,7 +61,7 @@ class DeepLTranslator:
         )
         if error or body is None:
             return _failure(self._settings, request, "deepl", error or "empty_response")
-        translations = body.get("translations")
+        translations = body.get("translations") if isinstance(body, dict) else None
         if not isinstance(translations, list) or not translations:
             return _failure(self._settings, request, "deepl", "empty_translation")
         first = translations[0]
@@ -188,7 +193,7 @@ def _precheck(
 ) -> TranslationResult | None:
     if not settings.ready:
         return _failure(settings, request, provider, "translate_not_configured")
-    if len(request.text) > _MAX_TEXT_CHARS:
+    if len(request.text) > MAX_TRANSLATION_CHARS:
         return _failure(settings, request, provider, "text_too_long")
     return None
 
@@ -210,22 +215,26 @@ def _post_json(
     timeout_seconds: float,
 ) -> tuple[Any | None, str | None]:
     try:
-        response = client.post(
+        with client.stream(
+            "POST",
             url,
             headers=headers,
             json=json_body,
             timeout=timeout_seconds,
-        )
+        ) as response:
+            if response.status_code >= 400:
+                return None, f"http_{response.status_code}"
+            content = read_bounded_response(response)
+    except ResponseTooLarge:
+        return None, "response_too_large"
     except httpx.TimeoutException:
         return None, "timeout"
     except httpx.HTTPError:
         return None, "http_error"
     try:
-        body = response.json()
-    except ValueError:
+        body = json.loads(content)
+    except (ValueError, RecursionError):
         return None, "invalid_json"
-    if response.status_code >= 400:
-        return body, f"http_{response.status_code}"
     return body, None
 
 

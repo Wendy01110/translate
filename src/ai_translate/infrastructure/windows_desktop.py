@@ -8,14 +8,13 @@ import time
 from collections.abc import Callable
 
 from ai_translate.core.errors import ImageSourceError, SelectionReadError
+from ai_translate.core.limits import MAX_CAPTURE_PIXELS, MAX_IMAGE_BYTES
 from ai_translate.core.models import ScreenRect
-from ai_translate.infrastructure.image_file import MAX_IMAGE_BYTES
 
 _CLIPBOARD_RETRIES = 10
 _CLIPBOARD_RETRY_SECONDS = 0.02
 _MODIFIER_WAIT_SECONDS = 0.8
 _ERROR_ALREADY_EXISTS = 183
-MAX_CAPTURE_PIXELS = 40_000_000
 
 
 class WindowsClipboard:

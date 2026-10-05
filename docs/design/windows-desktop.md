@@ -25,6 +25,7 @@
 
 - Windows 平台依赖通过 `sys_platform == 'win32'` 安装：PySide6、Pillow 和 pywin32。PySide6 提供 Qt Widgets、Qt Quick、QML 和 `QSystemTrayIcon`；Pillow 只负责屏幕图像；pywin32 只负责 Unicode 文本剪贴板。活动 Windows UI 不再依赖 Tk、ttk 或 pystray。
 - `DesktopListener` 继续编排划词、单次 OCR、实时开停和忙碌门禁；Windows 只注入热键、文本来源、图片来源和展示器。
+- 实时圈选完成结果由 UI 队列延迟投递，监听器按发起圈选时预留的会话代次接纳结果；旧矩形或取消回调不得影响重开后的新圈选。应用设置会取消待完成圈选并停止已运行循环，用户重新圈选开始；共享规则见 [屏幕实时 OCR](./live-screen-ocr.md)。
 - 进程只创建一个 `QApplication` 和一个 `QQmlEngine`。QML 对象只在 UI 主线程创建或更新；模型请求和热键动作在后台线程运行，通过有界队列回到 UI 线程。
 - 托盘输入、划词和单次 OCR 只组合一个 `WindowsOverlayPresenter`，并更新同一个 `Workspace.qml` 窗口；不得再创建第二套输入 presenter 或第二套翻译语义。
 - `ai-translate listen` 使用同一 Qt 事件循环但不创建托盘；`ai-translate app` 增加 `QSystemTrayIcon` 和单实例互斥。`QApplication.setQuitOnLastWindowClosed(False)` 保证隐藏所有普通窗口时托盘宿主仍保持运行。
@@ -51,7 +52,7 @@
 - 工作区标题行显示目标语言、翻译、置顶和复制译文；来源与状态位于底部。目标语言切换只更新当前 listener，不自动请求、不直接写配置。翻译按钮与 `Ctrl+Enter` 共用忙碌门禁，请求期间输入和动作禁用；菜单输入、划词和单次 OCR 更新同一个窗口对象。
 - 普通工作区可以获得焦点以编辑、选择和复制文字；每次新结果短暂来到最前，随后恢复普通层级。只有用户点击「置顶」后才持续最前，状态只保留到当前进程退出；复制按钮只写当前译文并显示短暂成功反馈。
 - `Settings.qml` 使用左侧翻译、OCR、语言与热键导航，右侧正文可独立滚动，底部状态和「应用/保存」固定可达。密钥字段遮挡；OCR 只提供 `auto`、`paddle`、`standard` 和 `model`，不显示 Windows 不可用的本地普通 Vision。
-- 「应用」写入配置并重建运行时但保持窗口打开；「保存」成功后隐藏窗口。设置仍写入 `resolve_env_path()` 选中的唯一文件，不创建第二套 HTTP 客户端语义。
+- 「应用」写入配置并按实际变化更新运行时，但保持窗口打开；「保存」成功后隐藏窗口。设置仍写入 `resolve_env_path()` 选中的唯一文件；与 macOS 共用 `DesktopRuntime` 的客户端复用逻辑，只改语言或热键不会重新加载 Paddle，不创建第二套 HTTP 客户端语义。
 - 托盘使用 `QSystemTrayIcon`，菜单只显示划词、截图、实时开停、「打开翻译工作区…」、设置和退出；左键单击打开工作区。菜单不得展示模型诊断、密钥、剪贴板原文或图片。
 - 单实例使用当前登录会话内的命名互斥量；退出时停止实时循环、热键、托盘和 Qt 事件循环。
 

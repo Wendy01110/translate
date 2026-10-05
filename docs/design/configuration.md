@@ -78,7 +78,9 @@ API 高级：
 
 OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `listen` 和桌面 App 注册，`config-check` 只回读字符串。macOS 使用 Option/Command 显示，Windows 使用 Alt/Win 显示；配置仍保存统一规范化字符串。
 
-桌面「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_STANDARD_API_KEY`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_LOCAL_ADVANCED_MODEL_TIER`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`、`HOTKEY_LIVE_OCR`。四层方法可独立强制选择，本地 Paddle 档位可在 `tiny`、`small` 和 `medium` 间切换；PaddleOCR 设备、API 普通地址/引擎/语言/超时以及两侧 Router 思考开关仍是 `.env` 进阶项。两套 API 的地址、密钥、思考开关和超时不得互拷；不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并立即重建翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。macOS 翻译工作区的目标语言栏只更新当前进程，不写配置、不自动调用上游；持久默认仍由设置页的 `TRANSLATE_TARGET_LANG` 保存，设置应用后必须同步工作区栏位。设置页可切换翻译来源和模型；macOS 热键控件录制组合键，Windows 首版填写统一热键字符串。三组热键不得相同。
+桌面「设置」可改写 `TRANSLATE_PROVIDER`、`TRANSLATE_BASE_URL`、`TRANSLATE_API_KEY`、`TRANSLATE_MODEL`、`TRANSLATE_REGION`、`OCR_STANDARD_API_KEY`、`OCR_BASE_URL`、`OCR_API_KEY`、`OCR_MODEL`、`OCR_ENGINE`、`OCR_LOCAL_ADVANCED_MODEL_TIER`、`OCR_MIN_CONFIDENCE`、`OCR_IMAGE_MODE`、`TRANSLATE_SOURCE_LANG`、`TRANSLATE_TARGET_LANG`、`HOTKEY_SELECTION`、`HOTKEY_OCR`、`HOTKEY_LIVE_OCR`。四层方法可独立强制选择，本地 Paddle 档位可在 `tiny`、`small` 和 `medium` 间切换；PaddleOCR 设备、API 普通地址/引擎/语言/超时以及两侧 Router 思考开关仍是 `.env` 进阶项。两套 API 的地址、密钥、思考开关和超时不得互拷；不得改写 `TRANSLATE_MODELS` / `OCR_MODELS`，也不得写入 `AUTHORIZATION`。密钥用密文框编辑，保存到当前解析到的那一个文件；不得进入日志、浮窗或 `config-check` 明文。「应用」写入并按实际配置变化更新翻译/OCR 用例，窗口保持打开；「保存」在应用成功后关闭窗口。macOS 翻译工作区的目标语言栏只更新当前进程，不写配置、不自动调用上游；持久默认仍由设置页的 `TRANSLATE_TARGET_LANG` 保存，设置应用后必须同步工作区栏位。设置页可切换翻译来源和模型；macOS 热键控件录制组合键，Windows 首版填写统一热键字符串。三组热键不得相同。
+
+macOS 和 Windows 的 `DesktopRuntime` 分别保存一个翻译客户端和一个 OCR 组合。设置未变，或仅改变源/目标语言、热键、模型候选列表时，复用原实例和 Paddle 懒加载状态；语言随每次翻译请求传入。翻译来源、地址、密钥、模型、区域、超时或思考配置变化时，只更新翻译客户端及依赖它的用例；OCR 各层请求配置、模式、置信度或本地模型档位变化时，更新 OCR 组合，翻译客户端保持复用。设置应用仍会停止当前实时 OCR 会话，需重新开启。
 
 ## 加载路径
 
@@ -94,6 +96,16 @@ OCR 不读取源/目标语言。语言只作用于翻译端口。热键由 `list
 本地高级 PaddleOCR 在进程内懒加载，按页从内存解码图片，不把原图写盘；默认使用 PP-OCRv6 tiny 的检测与识别模型并关闭方向分类、展开和文本行方向三个附加模型。可选依赖未安装时不构造客户端，首次实际初始化可能从官方模型源下载文件。API 普通客户端向 OCR.space 发送 `apikey` 请求头和包含 `base64Image`、`language`、`OCREngine` 的 multipart 表单，发送前限制单张原图不超过 1,000,000 字节，响应体上限为 2,000,000 字节，不记录原图或上游错误详情。API 高级客户端在 `OCR_MODEL=Unlimited-OCR` 时保留其网关合同，发送 `document parsing.` / `Multi page parsing.`、`temperature=0`、`skip_special_tokens=false` 和 `images_config.image_mode`；其它模型发送标准 OpenAI `image_url` 内容、明确的纯文本 OCR 提示、`temperature=0` 与输出 token 上限，不发送 Unlimited-OCR 私有字段。翻译和 API 高级 OCR 连接默认本机 Router 地址时分别自动附加 `router.thinking=false`；显式配置优先，非 Router 通用地址不自动接收私有字段。两套 API 的 `httpx` 都使用 `trust_env=false`；识别文本清理版面标记后再交给翻译端口，API 高级响应 `finish_reason=length` 视为失败，不返回残缺正文。
 
 ## 主流程与失败边界
+
+OCR 的项目输入预算为最多 10 页、单张最多 20 MiB、全部原始图片合计最多 20 MiB，由 `core/limits.py` 与 `core/ocr_input.py` 执行；不新增环境变量或 `config-check` 字段。页数、单张或累计字节超限在识别/模型初始化/编码/请求前拒绝，具体错误与 CLI 读取规则见 [OCR 分流](./ocr-routing.md)。有效输入仍遵守 OCR.space 单张 1,000,000 字节和不支持多页的提供方限制。这些预算限制原始图片输入，不表示 base64 请求大小、解码像素或进程内存上限。
+
+翻译输入统一由 `core/limits.py` 限制为 8000 字符，覆盖划词、桌面输入、CLI、OCR 后翻译及全部翻译客户端；超限返回 `text_too_long`，不调用翻译端口或上游。OCR 后翻译返回 `partial` 并保留识别原文，不自动拆分或截断。Google 内置源另受 HTTP 客户端 URL 编码长度限制，提前超限时返回 `request_url_too_long`，不发送请求。
+
+翻译、网页会话页和两层 API OCR 的最终响应在流式读取时检查解码后字节，最多允许 2,000,000 字节进入 JSON/文本解析；超限关闭响应流，返回 `response_too_large`，OCR.space 保留 `ocr_response_too_large`。HTTP 错误直接返回状态码错误，不读取或展示其正文。这些限制是内部常量，不新增环境变量或 `config-check` 字段；它们限制解析输入，不代表进程整体内存上限。
+
+JSON 解码因语法、编码或过深嵌套失败时，OpenAI 兼容、官方翻译和 API OCR 均返回 `invalid_json`；网页源保留普通非 JSON 内容的文本解析以支持 Bing HTML 会话页，但过深 JSON 返回同一稳定错误。字节上限不等于固定嵌套层数。DeepL 官方响应只有对象顶层才能提取 `translations`，其它非空 JSON 类型返回 `empty_translation`；失败不附带上游正文或异常详情，正常提供方合同保持原样。
+
+翻译和 API 高级 OCR 共用兼容响应的内容与完成原因解析。`finish_reason=length` 在翻译侧返回 `translate_output_truncated`、`failure` 和空译文，在 OCR 侧继续返回 `ocr_output_truncated`；OCR 后翻译遇到截断时，用例返回 `partial` 并保留已识别原文。未提供完成原因的兼容响应保持现有非空正文判定。这些处理不新增环境变量，也不自动续写或重试截断回复。
 
 ```text
 进程启动或 config-check

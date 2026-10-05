@@ -73,6 +73,7 @@ class DesktopListener:
         self._live_running = False
         self._live_rect: ScreenRect | None = None
         self._live_memory = LiveOcrMemory()
+        self._live_state_lock = threading.Lock()
         self._live_tick_lock = threading.Lock()
         self._live_thread: threading.Thread | None = None
         self._live_generation = 0
@@ -105,10 +106,11 @@ class DesktopListener:
 
     def set_target_lang(self, target_lang: str) -> None:
         normalized = target_lang.strip().lower()
-        if not normalized or normalized == self._target_lang:
-            return
-        self._target_lang = normalized
-        self._live_memory = LiveOcrMemory()
+        with self._live_state_lock:
+            if not normalized or normalized == self._target_lang:
+                return
+            self._target_lang = normalized
+            self._live_memory = LiveOcrMemory()
 
     def handle_selection(self) -> None:
         self._run_exclusive(self._selection_job)
@@ -119,10 +121,16 @@ class DesktopListener:
         self._run_exclusive(self._ocr_job)
 
     def handle_live_ocr(self) -> None:
-        if self._live_starting or self._live_running:
+        with self._live_state_lock:
+            active = self._live_starting or self._live_running
+            if not active:
+                if self._pick_region is None or self._capture_rect is None:
+                    return
+                self._live_generation += 1
+                generation = self._live_generation
+                self._live_starting = True
+        if active:
             self.stop_live()
-            return
-        if self._pick_region is None or self._capture_rect is None:
             return
         if bool(getattr(self._pick_region, "needs_main_thread", False)):
             try:
@@ -132,42 +140,39 @@ class DesktopListener:
                 pass
             else:
                 if not NSThread.isMainThread():
-                    self._live_starting = True
-                    callAfter(self._start_live_pending)
+                    callAfter(lambda: self._start_live_pending(generation))
                     return
-        self._live_starting = True
-        self._start_live_pending()
+        self._start_live_pending(generation)
 
-    def _start_live_pending(self) -> None:
-        if not self._live_starting:
-            return
-        picker = self._pick_region
-        if picker is None:
-            self._live_starting = False
-            return
-        start = getattr(picker, "start", None)
-        if callable(start):
-            try:
-                start(self._complete_live_pick)
-            except Exception:
+    def _start_live_pending(self, generation: int) -> None:
+        with self._live_state_lock:
+            if self._live_generation != generation or not self._live_starting:
+                return
+            picker = self._pick_region
+            if picker is None:
                 self._live_starting = False
-                raise
-            return
+                return
+        start = getattr(picker, "start", None)
         try:
-            rect = picker()
+            if callable(start):
+                start(lambda rect: self._complete_live_pick(rect, generation))
+            else:
+                self._complete_live_pick(picker(), generation)
         except Exception:
-            self._live_starting = False
+            with self._live_state_lock:
+                if self._live_generation == generation:
+                    self._live_starting = False
             raise
-        self._complete_live_pick(rect)
 
     def stop_live(self) -> None:
-        was_starting = self._live_starting
-        self._live_generation += 1
-        self._live_stop.set()
-        self._live_starting = False
-        self._live_running = False
-        self._live_rect = None
-        self._live_memory = LiveOcrMemory()
+        with self._live_state_lock:
+            was_starting = self._live_starting
+            self._live_generation += 1
+            self._live_stop.set()
+            self._live_starting = False
+            self._live_running = False
+            self._live_rect = None
+            self._live_memory = LiveOcrMemory()
         hide = getattr(self._live_presenter, "hide", None)
         if callable(hide):
             hide()
@@ -190,32 +195,36 @@ class DesktopListener:
         finally:
             self._live_tick_lock.release()
 
-    def _complete_live_pick(self, rect: ScreenRect | None) -> None:
-        if not self._live_starting:
+    def _complete_live_pick(self, rect: ScreenRect | None, generation: int) -> None:
+        with self._live_state_lock:
+            if self._live_generation != generation or not self._live_starting:
+                return
+            self._live_starting = False
+            if self._capture_rect is None or rect is None or not rect.is_usable():
+                return
+            selected_rect = rect.canonical()
+            self._live_rect = selected_rect
+            self._live_memory = LiveOcrMemory()
+            self._live_stop.clear()
+            self._live_running = True
+        if not self._live_is_current(generation):
             return
-        self._live_starting = False
-        capture = self._capture_rect
-        if capture is None:
-            return
-        if rect is None or not rect.is_usable():
-            return
-        self._live_rect = rect.canonical()
-        self._live_memory = LiveOcrMemory()
-        self._live_generation += 1
-        generation = self._live_generation
-        self._live_stop.clear()
-        self._live_running = True
         set_anchor = getattr(self._live_presenter, "set_anchor", None)
         if callable(set_anchor):
-            set_anchor(self._live_rect)
+            set_anchor(selected_rect)
+        if not self._live_is_current(generation):
+            return
         self._live_presenter.show_status("识别中…")
-        thread = threading.Thread(
-            target=self._live_loop,
-            args=(generation,),
-            daemon=True,
-        )
-        thread.start()
-        self._live_thread = thread
+        with self._live_state_lock:
+            if not self._live_is_current(generation):
+                return
+            thread = threading.Thread(
+                target=self._live_loop,
+                args=(generation,),
+                daemon=True,
+            )
+            self._live_thread = thread
+            thread.start()
 
     def _live_loop(self, generation: int) -> None:
         try:
@@ -229,8 +238,9 @@ class DesktopListener:
                 if self._live_stop.wait(wait_seconds):
                     break
         finally:
-            if self._live_generation == generation:
-                self._live_running = False
+            with self._live_state_lock:
+                if self._live_generation == generation:
+                    self._live_running = False
 
     def _live_tick_body(self, generation: int) -> str | None:
         if not self._live_is_current(generation):
@@ -261,20 +271,29 @@ class DesktopListener:
         frame_hash = self._hash_image(image_bytes)
         if not self._live_is_current(generation):
             return LIVE_STOPPED
+        with self._live_state_lock:
+            memory = self._live_memory
+            source_lang = self._source_lang
+            target_lang = self._target_lang
+
+        def should_continue() -> bool:
+            return self._live_is_current(generation) and self._live_memory is memory
+
         result = self._ocr_translate.advance_live(
             image_bytes,
             mime_type,
-            self._source_lang,
-            self._target_lang,
+            source_lang,
+            target_lang,
             frame_hash=frame_hash,
-            memory=self._live_memory,
-            should_continue=lambda: self._live_is_current(generation),
+            memory=memory,
+            should_continue=should_continue,
         )
-        if not self._live_is_current(generation):
-            return LIVE_STOPPED
-        self._live_memory = result.memory
-        if result.action == LIVE_SHOW and result.job is not None:
-            self._live_presenter.show(result.job)
+        with self._live_state_lock:
+            if not should_continue():
+                return LIVE_STOPPED
+            self._live_memory = result.memory
+            if result.action == LIVE_SHOW and result.job is not None:
+                self._live_presenter.show(result.job)
         return result.action
 
     def _live_is_current(self, generation: int) -> bool:
@@ -371,7 +390,7 @@ class DesktopListener:
         ocr_hotkey: str,
         live_hotkey: str | None = None,
     ) -> None:
-        if self._live_running:
+        if self._live_starting or self._live_running:
             self.stop_live()
         self._selection = selection
         self._ocr_translate = ocr_translate

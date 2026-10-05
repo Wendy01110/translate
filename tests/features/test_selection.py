@@ -1,6 +1,20 @@
+import pytest
+
 from ai_translate.core.models import JobKind, JobStatus
 from ai_translate.features.selection import SelectionTranslateService
 from tests.support import FakeTranslator
+
+
+@pytest.mark.parametrize("length", [8000, 8001])
+def test_text_length_is_checked_before_calling_translator(length: int) -> None:
+    translator = FakeTranslator()
+    job = SelectionTranslateService(translator).translate_text("字" * length, "auto", "zh")
+    if length == 8000:
+        assert job.status is JobStatus.SUCCESS
+        assert len(translator.calls) == 1
+    else:
+        assert job.error == "text_too_long"
+        assert translator.calls == []
 
 
 def test_empty_text_fails_without_calling_translator() -> None:

@@ -18,13 +18,13 @@ class Translator(Protocol):
 
 class OcrEngine(Protocol):
     def recognize(self, image_bytes: bytes, mime_type: str) -> OcrResult:
-        """Extract text from one image. Must not read translation settings."""
+        """Extract one image within core input limits; never read translation settings."""
 
     def recognize_pages(
         self,
         pages: Sequence[tuple[bytes, str]],
     ) -> OcrResult:
-        """Extract text from one or more images. Must not read translation settings."""
+        """Extract ordered pages within core input limits; never read translation settings."""
 
 
 class TextSource(Protocol):

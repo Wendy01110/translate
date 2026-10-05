@@ -3,8 +3,12 @@ from __future__ import annotations
 import httpx
 
 from ai_translate.config import TranslateSettings
+from ai_translate.core.limits import MAX_TRANSLATION_CHARS
 from ai_translate.core.models import JobStatus, TranslationRequest, TranslationResult
-from ai_translate.infrastructure.openai_compat import message_text, post_chat_completion
+from ai_translate.infrastructure.openai_compat import (
+    completion_content,
+    post_chat_completion,
+)
 
 
 class HttpTranslator:
@@ -20,7 +24,7 @@ class HttpTranslator:
         )
 
     def translate(self, request: TranslationRequest) -> TranslationResult:
-        if not self._settings.ready:
+        if not self._settings.ready or len(request.text) > MAX_TRANSLATION_CHARS:
             return TranslationResult(
                 status=JobStatus.FAILURE,
                 source_text=request.text,
@@ -28,7 +32,11 @@ class HttpTranslator:
                 source_lang=request.source_lang,
                 target_lang=request.target_lang,
                 model=self._settings.model,
-                error="translate_not_configured",
+                error=(
+                    "translate_not_configured"
+                    if not self._settings.ready
+                    else "text_too_long"
+                ),
             )
 
         if request.source_lang == "auto":
@@ -74,8 +82,8 @@ class HttpTranslator:
                 error=error or "empty_response",
             )
 
-        translated = message_text(body)
-        if translated is None:
+        translated, finish_reason = completion_content(body)
+        if finish_reason == "length" or translated is None:
             return TranslationResult(
                 status=JobStatus.FAILURE,
                 source_text=request.text,
@@ -83,7 +91,11 @@ class HttpTranslator:
                 source_lang=request.source_lang,
                 target_lang=request.target_lang,
                 model=self._settings.model,
-                error="empty_translation",
+                error=(
+                    "translate_output_truncated"
+                    if finish_reason == "length"
+                    else "empty_translation"
+                ),
             )
         return TranslationResult(
             status=JobStatus.SUCCESS,

@@ -4,6 +4,7 @@ import sys
 from collections.abc import Callable, Sequence
 
 from ai_translate.bootstrap.composition import (
+    DesktopRuntime,
     config_status,
     ocr_engine,
     ocr_translate_service,
@@ -75,16 +76,14 @@ def _save_preferences(
     *,
     listener: DesktopListener,
     presenter: ResultPresenter,
-    on_paddle_first_load: Callable[[str], None],
+    services: DesktopRuntime,
 ) -> None:
     upsert_env_values(resolve_env_path(), prefs.to_env())
     refreshed = Settings.load()
+    services.update(refreshed)
     listener.replace_runtime(
-        selection=selection_service(refreshed),
-        ocr_translate=ocr_translate_service(
-            refreshed,
-            on_paddle_first_load=on_paddle_first_load,
-        ),
+        selection=services.selection,
+        ocr_translate=services.ocr_translate,
         source_lang=refreshed.translate.source_lang,
         target_lang=refreshed.translate.target_lang,
         selection_hotkey=refreshed.hotkey.selection,
@@ -127,12 +126,10 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
             live_presenter=live_ui,
             live_active=lambda: bool(listener and listener.live_running),
         )
+        desktop_services = DesktopRuntime(settings, on_paddle_first_load=paddle_first_load)
         listener = DesktopListener(
-            selection=selection_service(settings),
-            ocr_translate=ocr_translate_service(
-                settings,
-                on_paddle_first_load=paddle_first_load,
-            ),
+            selection=desktop_services.selection,
+            ocr_translate=desktop_services.ocr_translate,
             read_selected_text=selected_text.read_selected_text,
             capture_region=region_screenshot.capture_region,
             presenter=presenter,
@@ -164,7 +161,7 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
                     prefs,
                     listener=listener,
                     presenter=presenter,
-                    on_paddle_first_load=paddle_first_load,
+                    services=desktop_services,
                 ),
             )
 
@@ -253,12 +250,10 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         live_presenter=live_ui,
         live_active=lambda: bool(listener and listener.live_running),
     )
+    desktop_services = DesktopRuntime(settings, on_paddle_first_load=paddle_first_load)
     listener = DesktopListener(
-        selection=selection_service(settings),
-        ocr_translate=ocr_translate_service(
-            settings,
-            on_paddle_first_load=paddle_first_load,
-        ),
+        selection=desktop_services.selection,
+        ocr_translate=desktop_services.ocr_translate,
         read_selected_text=selected_text.read_selected_text,
         capture_region=region_capture.capture_region,
         presenter=presenter,
@@ -291,7 +286,7 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
                 prefs,
                 listener=listener,
                 presenter=presenter,
-                on_paddle_first_load=paddle_first_load,
+                services=desktop_services,
             ),
         )
         instance = WindowsInstanceLock()

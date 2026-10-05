@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from collections.abc import Sequence
 from typing import Any
 
@@ -8,10 +9,16 @@ import httpx
 
 from ai_translate.config import StandardOcrSettings
 from ai_translate.core.models import JobStatus, OcrResult
+from ai_translate.core.ocr_input import ocr_pages_error
+from ai_translate.infrastructure.http_response import (
+    MAX_RESPONSE_BYTES,
+    ResponseTooLarge,
+    read_bounded_response,
+)
 from ai_translate.infrastructure.ocr_text import clean_ocr_text
 
 OCR_SPACE_MAX_IMAGE_BYTES = 1_000_000
-OCR_SPACE_MAX_RESPONSE_BYTES = 2_000_000
+OCR_SPACE_MAX_RESPONSE_BYTES = MAX_RESPONSE_BYTES
 _SUPPORTED_MIME_TYPES = frozenset(
     {
         "image/bmp",
@@ -41,8 +48,9 @@ class OcrSpaceEngine:
     def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
         if not self._settings.ready:
             return self._failure("ocr_standard_not_configured")
-        if not pages or any(not image_bytes for image_bytes, _mime_type in pages):
-            return self._failure("empty_image")
+        error = ocr_pages_error(pages)
+        if error:
+            return self._failure(error)
         if len(pages) != 1:
             return self._failure("ocr_standard_multi_page_unsupported")
         image_bytes, mime_type = pages[0]
@@ -62,25 +70,29 @@ class OcrSpaceEngine:
             "OCREngine": (None, str(self._settings.engine)),
         }
         try:
-            response = self._client.post(
+            with self._client.stream(
+                "POST",
                 self._settings.base_url,
                 headers={"apikey": self._settings.api_key.get_secret_value()},
                 files=files,
                 timeout=self._settings.timeout_seconds,
-            )
+            ) as response:
+                if response.status_code >= 400:
+                    return self._failure(f"http_{response.status_code}")
+                content = read_bounded_response(
+                    response, max_bytes=OCR_SPACE_MAX_RESPONSE_BYTES
+                )
+        except ResponseTooLarge:
+            return self._failure("ocr_response_too_large")
         except httpx.TimeoutException:
             return self._failure("timeout")
         except httpx.HTTPError:
             return self._failure("http_error")
 
-        if len(response.content) > OCR_SPACE_MAX_RESPONSE_BYTES:
-            return self._failure("ocr_response_too_large")
         try:
-            body = response.json()
-        except ValueError:
+            body = json.loads(content)
+        except (ValueError, RecursionError):
             return self._failure("invalid_json")
-        if response.status_code >= 400:
-            return self._failure(f"http_{response.status_code}")
         if not isinstance(body, dict):
             return self._failure("invalid_json")
         raw_text = _parsed_text(body)
@@ -114,7 +126,7 @@ class OcrSpaceEngine:
 def _parsed_text(payload: dict[str, Any]) -> str | None:
     if payload.get("IsErroredOnProcessing") is True:
         return None
-    if payload.get("OCRExitCode") not in {1, 2, "1", "2"}:
+    if payload.get("OCRExitCode") not in (1, 2, "1", "2"):
         return None
     parsed_results = payload.get("ParsedResults")
     if not isinstance(parsed_results, list) or not parsed_results:
@@ -123,7 +135,7 @@ def _parsed_text(payload: dict[str, Any]) -> str | None:
     for item in parsed_results:
         if not isinstance(item, dict):
             continue
-        if item.get("FileParseExitCode") not in {None, 1, "1"}:
+        if item.get("FileParseExitCode") not in (None, 1, "1"):
             continue
         value = item.get("ParsedText")
         if isinstance(value, str) and value.strip():

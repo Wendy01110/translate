@@ -2,6 +2,7 @@ import pytest
 
 from ai_translate.core.errors import ImageSourceError
 from ai_translate.core.models import ScreenRect
+from ai_translate.infrastructure.screenshot import RectCapture
 from ai_translate.infrastructure.windows_desktop import (
     WindowsClipboard,
     WindowsRectCapture,
@@ -106,6 +107,35 @@ def test_windows_rect_capture_rejects_excessive_pixel_area() -> None:
     with pytest.raises(ImageSourceError) as caught:
         capture.capture_rect(ScreenRect(x=0, y=0, width=10000, height=10000))
     assert caught.value.code == "image_too_large"
+
+
+@pytest.mark.parametrize("capture_type", [RectCapture, WindowsRectCapture])
+@pytest.mark.parametrize(
+    "rect",
+    [
+        ScreenRect(x=float("inf"), y=0, width=80, height=40),
+        ScreenRect(x=0, y=float("nan"), width=80, height=40),
+        ScreenRect(x=0, y=0, width=float("inf"), height=40),
+    ],
+)
+def test_rect_capture_rejects_invalid_coordinates_before_grabbing(
+    monkeypatch: pytest.MonkeyPatch, capture_type, rect: ScreenRect,
+) -> None:
+    monkeypatch.setattr("ai_translate.infrastructure.screenshot.sys.platform", "darwin")
+    calls: list[ScreenRect] = []
+    capture = capture_type(grabber=lambda selected: calls.append(selected) or b"png")
+    with pytest.raises(ImageSourceError) as caught:
+        capture.capture_rect(rect)
+    assert caught.value.code == "region_too_small"
+    assert calls == []
+
+
+def test_windows_rect_capture_accepts_exact_pixel_limit() -> None:
+    rect = ScreenRect(x=-100, y=20, width=8000, height=5000)
+    calls: list[ScreenRect] = []
+    capture = WindowsRectCapture(grabber=lambda selected: calls.append(selected) or b"png")
+    assert capture.capture_rect(rect) == (b"png", "image/png")
+    assert calls == [rect]
 
 
 def test_windows_region_screenshot_cancels_without_capture() -> None:

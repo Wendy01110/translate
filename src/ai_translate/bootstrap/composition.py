@@ -35,6 +35,45 @@ from ai_translate.infrastructure.web_translate import (
 from ai_translate.infrastructure.vision_ocr import VisionOcrEngine, vision_available
 
 
+class DesktopRuntime:
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        on_paddle_first_load: Callable[[str], None] | None = None,
+    ) -> None:
+        self._settings: Settings | None = None
+        self._on_paddle_first_load = on_paddle_first_load
+        self.update(settings)
+
+    def update(self, settings: Settings) -> None:
+        previous = self._settings
+        language_and_catalog = {"source_lang", "target_lang", "models"}
+        translate_changed = previous is None or (
+            settings.translate.model_dump(exclude=language_and_catalog)
+            != previous.translate.model_dump(exclude=language_and_catalog)
+        )
+        ocr_changed = previous is None or (
+            settings.ocr.model_dump(exclude={"models"})
+            != previous.ocr.model_dump(exclude={"models"})
+            or settings.standard_ocr != previous.standard_ocr
+            or settings.local_advanced_ocr != previous.local_advanced_ocr
+        )
+        translator = translator_for(settings) if translate_changed else self._translator
+        ocr = (
+            ocr_engine(settings, on_paddle_first_load=self._on_paddle_first_load)
+            if ocr_changed
+            else self._ocr
+        )
+        if translate_changed:
+            self.selection = SelectionTranslateService(translator)
+        if translate_changed or ocr_changed:
+            self.ocr_translate = OcrTranslateService(ocr, translator)
+        self._translator = translator
+        self._ocr = ocr
+        self._settings = settings
+
+
 def config_status(settings: Settings) -> ConfigStatus:
     translate = settings.translate
     ocr = settings.ocr

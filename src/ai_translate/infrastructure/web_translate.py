@@ -10,9 +10,13 @@ from urllib.parse import urlencode
 import httpx
 
 from ai_translate.config import TranslateSettings
+from ai_translate.core.limits import MAX_TRANSLATION_CHARS
 from ai_translate.core.models import JobStatus, TranslationRequest, TranslationResult
+from ai_translate.infrastructure.http_response import (
+    ResponseTooLarge,
+    read_bounded_response,
+)
 
-_MAX_TEXT_CHARS = 8000
 _GOOGLE_URL = "https://translate.google.com/translate_a/single"
 _BING_PAGE_URL = "https://www.bing.com/translator"
 _BING_TRANSLATE_URL = "https://www.bing.com/ttranslatev3"
@@ -59,11 +63,14 @@ class GoogleWebTranslator:
             "tl": target,
             "q": request.text,
         }
+        try:
+            url = httpx.URL(_GOOGLE_URL, params=params)
+        except httpx.InvalidURL:
+            return _failure(request, "google_web", "request_url_too_long")
         body, error = _send(
             self._client,
             "GET",
-            _GOOGLE_URL,
-            params=params,
+            url,
             timeout_seconds=self._settings.timeout_seconds,
         )
         if error:
@@ -193,7 +200,7 @@ class DeepLWebTranslator:
 
 
 def _precheck(request: TranslationRequest, provider: str) -> TranslationResult | None:
-    if len(request.text) > _MAX_TEXT_CHARS:
+    if len(request.text) > MAX_TRANSLATION_CHARS:
         return _failure(request, provider, "text_too_long")
     return None
 
@@ -277,7 +284,7 @@ def _deepl_rpc_body(content: str, source: str, target: str) -> str:
 def _send(
     client: httpx.Client,
     method: str,
-    url: str,
+    url: str | httpx.URL,
     *,
     headers: dict[str, str] | None = None,
     params: dict[str, Any] | None = None,
@@ -290,7 +297,7 @@ def _send(
     if headers:
         merged.update(headers)
     try:
-        response = client.request(
+        with client.stream(
             method,
             url,
             headers=merged,
@@ -299,17 +306,25 @@ def _send(
             data=data,
             content=content,
             timeout=timeout_seconds,
-        )
+        ) as response:
+            if response.status_code >= 400:
+                return None, f"http_{response.status_code}"
+            response_content = read_bounded_response(response)
+    except ResponseTooLarge:
+        return None, "response_too_large"
     except httpx.TimeoutException:
         return None, "timeout"
     except httpx.HTTPError:
         return None, "http_error"
-    if response.status_code >= 400:
-        return None, f"http_{response.status_code}"
     try:
-        body = response.json()
+        body = json.loads(response_content)
+    except RecursionError:
+        return None, "invalid_json"
     except ValueError:
-        text = response.text.strip()
+        try:
+            text = response_content.decode(response.encoding or "utf-8", errors="replace").strip()
+        except LookupError:
+            text = response_content.decode("utf-8", errors="replace").strip()
         return (text or None), (None if text else "invalid_json")
     return body, None
 

@@ -9,6 +9,7 @@ from typing import Any
 
 from ai_translate.config import LocalAdvancedOcrSettings
 from ai_translate.core.models import JobStatus, OcrResult
+from ai_translate.core.ocr_input import ocr_pages_error
 from ai_translate.infrastructure.ocr_text import clean_ocr_text
 
 MAX_LOCAL_OCR_PIXELS = 40_000_000
@@ -49,8 +50,9 @@ class PaddleOcrEngine:
         return self.recognize_pages([(image_bytes, mime_type)])
 
     def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
-        if not pages or any(not image_bytes for image_bytes, _mime in pages):
-            return self._failure("empty_image")
+        error = ocr_pages_error(pages)
+        if error:
+            return self._failure(error)
 
         with self._lock:
             try:

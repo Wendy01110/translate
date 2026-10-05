@@ -1,6 +1,6 @@
 # 计划状态索引
 
-> 更新时间：2026-09-05（Asia/Shanghai）
+> 更新时间：2026-10-06（Asia/Shanghai）
 
 本页逐条索引全部进行中、待进行和暂时跳过计划，但只保留最近 5 项已完成计划。它不替代 `docs/README.md` 的默认入口，也不复制计划正文。状态变化时移动原计划并同步全部引用：
 
@@ -11,6 +11,7 @@
 
 ## 进行中
 
+- [项目复核、异常响应收口与 Git 交付](./in-progress/2026-10-06-project-review-and-git-delivery.md)：复核累积 WIP，收口过深 JSON 与 DeepL 响应类型失败，完成离线测试和文档后提交推送；真实桌面 OCR 验收单独确认。
 - [本地与 API 四层 OCR 分流](./in-progress/2026-08-20-tiered-ocr-routing.md)：macOS PP-OCRv6 small、Windows 真实圈选 PP-OCRv6 tiny、OCR.space API 普通和 Router API 高级均有成功真测；API 高级 OCR 的 Router 思考默认关闭，macOS 实时首次提醒已改由字幕条承接，仅等待 macOS 桌面首次提醒复验；2026-09-05 完成代码复核、桌面服务重复构造收口和已退出输入窗口清理。
 
 ## 待进行
@@ -24,10 +25,10 @@
 
 ## 最近完成
 
-- [Windows 桌面版 MVP](./completed/2026-08-20-windows-mvp.md)：Windows 11 x64 源码安装、Qt 工作区/设置/圈选/字幕、三组热键、普通与管理员窗口划词、双屏/DPI、四层 OCR、实时停止、Router 思考关闭和真实时延均已闭合。
-- [Windows Qt 桌面 UI 迁移](./completed/2026-09-01-windows-ui-optimization.md)：活动 Windows UI 已从 Tk/ttk 与 pystray 迁移到 PySide6、Qt Quick/QML 和 `QSystemTrayIcon`；四界面、真实控件、全局 `Alt+E`、Router 译文、150%/200% 缩放、物理圈选坐标和视觉对照均已验证。
-- [普通结果浮窗 UI 纠偏](./completed/2026-08-31-result-overlay-ui-correction.md)：macOS 菜单输入、划词和单次 OCR 已统一为同一个翻译工作区，三种原文均可编辑并可直接再译，译文只读；左上标题位已替换为目标语言栏，翻译、图钉、复制、焦点与同窗复用已完成 Fake AppKit 验证。
-- [普通结果浮窗置顶切换](./completed/2026-08-31-result-overlay-pin-toggle.md)：macOS/Windows 普通浮窗支持进程内置顶切换；macOS 普通态可进入鼠标所在副屏全屏 Space 并在失焦后收起，置顶态加入所有 Space，双屏原生路径、用户全屏复验与完整离线套件均通过。
-- [输入翻译窗口 UI 更新](./completed/2026-08-31-input-window-ui-refresh.md)：原独立 macOS 输入窗口曾按高保真视觉稿完成；后续已由统一「翻译」工作区取代，菜单入口继续保留但不再创建第二个窗口。
+- [OCR.space 异常响应与自动降级](./completed/2026-10-05-ocr-space-response-failures.md)：普通层异常状态字段与过深 JSON 稳定失败，自动模式继续高级并只翻译其文字，强制普通模式停止；定向 69 项、完整离线 520 项通过，真实提供方与桌面未在本轮验收。
+- [OCR 多页输入边界](./completed/2026-10-03-ocr-batch-input-bounds.md)：单次最多 10 页与合计 20 MiB，CLI 首次超限停止继续读文件，用例/路由/四层适配在初始化/编码/请求前共同拒绝；定向 184 项、完整离线 498 项通过，真实桌面与提供方未在本轮验收。
+- [划词系统命令失败归类](./completed/2026-10-03-selection-command-failures.md)：macOS 剪贴板与模拟复制的启动、超时、编解码失败进入既有界面错误结果，覆盖恢复失败和故障解除后再次触发；定向 78 项、完整离线 436 项通过，真实桌面与剪贴板未在本轮验收。
+- [实时 OCR 圈选会话隔离](./completed/2026-10-03-live-picker-lifecycle.md)：圈选代次提前预留，旧回调和旧启动不影响重开会话，设置应用取消未完成圈选；桌面相关 108 项、完整离线 407 项通过，真实桌面与模型未在本轮验收。
+- [图像输入与截屏边界优化](./completed/2026-10-03-image-source-bounds.md)：按先文档后代码执行，补齐图片有界读取、macOS 截图失败归类和两端区域坐标面积前置检查；完整离线套件 399 项通过，保留已有 WIP，未做真实截图或模型验收。
 
 完整已完成计划见 [completed/](./completed/)，对应完成日志见 [../logs/](../logs/)。默认索引不逐条重复历史记录；需要追溯旧状态时，再按日期打开对应文件或查看 Git 历史。

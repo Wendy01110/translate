@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import pytest
+
 from ai_translate.app import _needs_runtime, _needs_windows_ui
 from ai_translate.core.errors import ImageSourceError
+from ai_translate.core.limits import MAX_IMAGE_BYTES
 from ai_translate.core.models import ConfigStatus, JobStatus
 from ai_translate.features.ocr_translate import OcrTranslateService
 from ai_translate.features.selection import SelectionTranslateService
@@ -173,6 +176,121 @@ def test_ocr_command_missing_file_does_not_call_engine(tmp_path: Path, capsys) -
     assert code == 2
     assert output.err.strip() == "image_not_found"
     assert engine.calls == []
+
+
+@pytest.mark.parametrize("command", ["ocr", "ocr-translate"])
+@pytest.mark.parametrize(
+    ("budget", "error"),
+    [("count", "ocr_too_many_pages"), ("batch", "ocr_batch_too_large"), ("single", "image_too_large")],
+)
+def test_cli_input_budget_stops_loading_and_model_calls(
+    capsys, command: str, budget: str, error: str,
+) -> None:
+    loaded: list[str] = []
+    if budget == "count":
+        paths = [f"page-{index}.png" for index in range(11)]
+        data = b"x"
+        argv = [command, "--pages", *paths]
+        expected_loads = []
+    elif budget == "batch":
+        paths = ["first.png", "second.png", "unread.png"]
+        data = b"x" * (MAX_IMAGE_BYTES // 2 + 1)
+        argv = [command, "--pages", *paths]
+        expected_loads = paths[:2]
+    else:
+        paths = ["oversized.png"]
+        data = b"x" * (MAX_IMAGE_BYTES + 1)
+        argv = [command, "--image", *paths]
+        expected_loads = paths
+
+    def load(path: str) -> tuple[bytes, str]:
+        loaded.append(path)
+        return data, "image/png"
+
+    engine = FakeOcrEngine()
+    translator = FakeTranslator()
+    services = CliServices(
+        ocr=engine, ocr_translate=OcrTranslateService(engine, translator), load_image=load,
+    )
+    code = run(argv, _status(), services)
+    output = capsys.readouterr()
+    assert code == 2
+    assert output.out == ""
+    assert output.err.strip() == error
+    assert loaded == expected_loads
+    assert engine.calls == []
+    assert translator.calls == []
+
+
+@pytest.mark.parametrize("command", ["ocr", "ocr-translate"])
+@pytest.mark.parametrize("boundary", ["count", "bytes"])
+def test_cli_accepts_exact_batch_budget_and_preserves_order(
+    capsys, command: str, boundary: str,
+) -> None:
+    if boundary == "count":
+        paths = [f"page-{index}.png" for index in range(10)]
+        pages = {path: path.encode() for path in paths}
+    else:
+        paths = ["first.png", "second.png"]
+        pages = {path: b"x" * (MAX_IMAGE_BYTES // 2) for path in paths}
+    engine = FakeOcrEngine()
+    services = CliServices(
+        ocr=engine,
+        ocr_translate=OcrTranslateService(engine, FakeTranslator()),
+        load_image=lambda path: (pages[path], "image/png"),
+    )
+
+    assert run([command, "--pages", *paths], _status(), services) == 0
+    assert len(engine.calls) == 1
+    assert engine.calls[0] == [(pages[path], "image/png") for path in paths]
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("command", ["ocr", "ocr-translate"])
+def test_cli_rejects_oversized_injected_screenshot(capsys, command: str) -> None:
+    engine = FakeOcrEngine()
+    translator = FakeTranslator()
+    services = CliServices(
+        ocr=engine, ocr_translate=OcrTranslateService(engine, translator),
+        capture_region=lambda: (b"x" * (MAX_IMAGE_BYTES + 1), "image/png"),
+    )
+    code = run([command, "--screenshot"], _status(), services)
+    output = capsys.readouterr()
+    assert code == 2
+    assert output.out == ""
+    assert output.err.strip() == "image_too_large"
+    assert engine.calls == []
+    assert translator.calls == []
+
+
+@pytest.mark.parametrize("command", ["ocr", "ocr-translate"])
+def test_image_read_failure_stops_cli_without_exposing_os_details(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys, command: str,
+) -> None:
+    path = tmp_path / "page.png"
+    path.write_bytes(b"synthetic")
+    original_open = Path.open
+
+    def open_file(self, *args, **kwargs):
+        if self == path:
+            raise PermissionError("Synthetic OS detail")
+        return original_open(self, *args, **kwargs)
+
+    engine = FakeOcrEngine()
+    translator = FakeTranslator()
+    services = CliServices(
+        ocr=engine,
+        ocr_translate=OcrTranslateService(engine, translator),
+        load_image=load_image_file,
+    )
+    monkeypatch.setattr(Path, "open", open_file)
+    code = run([command, "--image", str(path)], _status(), services)
+    output = capsys.readouterr()
+    assert code == 2
+    assert output.err.strip() == "image_read_failed"
+    assert output.out == ""
+    assert engine.calls == []
+    assert translator.calls == []
 
 
 def test_ocr_translate_command_prints_translation(tmp_path: Path, capsys) -> None:

@@ -7,8 +7,46 @@ import pytest
 
 from ai_translate.config import OcrSettings, TranslateSettings
 from ai_translate.core.models import JobStatus, TranslationRequest
+from ai_translate.features.ocr_translate import OcrTranslateService
 from ai_translate.infrastructure.ocr_client import HttpOcrEngine
 from ai_translate.infrastructure.translate_client import HttpTranslator
+from tests.support import FakeOcrEngine
+
+
+@pytest.mark.parametrize("content", ["Synthetic partial translation", "", None])
+def test_truncated_translation_fails_and_preserves_ocr_source(content: str | None) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"finish_reason": "length", "message": {"content": content}}]
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        translator = HttpTranslator(
+            TranslateSettings(
+                _env_file=None,
+                provider="openai",
+                base_url="https://translate.example/v1",
+                model="fake-translate",
+                api_key="",
+            ),
+            client=client,
+        )
+        result = translator.translate(TranslationRequest("Hello", "auto", "zh"))
+        assert result.status is JobStatus.FAILURE
+        assert result.error == "translate_output_truncated"
+        assert result.translated_text is None
+
+        job = OcrTranslateService(FakeOcrEngine(text="Hello"), translator).translate_image(
+            b"synthetic", "image/png", "auto", "zh"
+        )
+        assert job.status is JobStatus.PARTIAL
+        assert job.source_text == "Hello"
+        assert job.ocr_text == "Hello"
+        assert job.error == "translate_output_truncated"
+        assert job.translated_text is None
 
 
 def test_translator_uses_only_translate_settings(monkeypatch: pytest.MonkeyPatch) -> None:

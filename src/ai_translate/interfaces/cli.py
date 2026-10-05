@@ -7,7 +7,9 @@ from dataclasses import dataclass
 
 from ai_translate import __version__
 from ai_translate.core.errors import ImageSourceError, SelectionReadError
+from ai_translate.core.limits import MAX_OCR_BATCH_BYTES, MAX_OCR_PAGES
 from ai_translate.core.models import ConfigStatus, JobStatus
+from ai_translate.core.ocr_input import ocr_pages_error
 from ai_translate.core.ports import OcrEngine
 from ai_translate.features.ocr_translate import OcrTranslateService
 from ai_translate.features.selection import SelectionTranslateService
@@ -148,7 +150,10 @@ def _add_image_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--pages",
         nargs="+",
-        help="Multiple image files in one request. Uses base unless OCR_IMAGE_MODE is set.",
+        help=(
+            f"Up to {MAX_OCR_PAGES} image files, {MAX_OCR_BATCH_BYTES // (1024 * 1024)} MiB total. "
+            "Uses base unless OCR_IMAGE_MODE is set."
+        ),
     )
     group.add_argument(
         "--screenshot",
@@ -225,11 +230,23 @@ def _resolve_pages(
     if args.screenshot:
         if services.capture_region is None:
             raise ImageSourceError("screenshot_unavailable")
-        return [services.capture_region()]
+        pages = [services.capture_region()]
+        error = ocr_pages_error(pages)
+        if error:
+            raise ImageSourceError(error)
+        return pages
     if services.load_image is None:
         raise ImageSourceError("image_read_failed")
     paths = [args.image] if args.image else list(args.pages)
-    return [services.load_image(path) for path in paths]
+    if len(paths) > MAX_OCR_PAGES:
+        raise ImageSourceError("ocr_too_many_pages")
+    pages: list[tuple[bytes, str]] = []
+    for path in paths:
+        pages.append(services.load_image(path))
+        error = ocr_pages_error(pages)
+        if error:
+            raise ImageSourceError(error)
+    return pages
 
 
 def _flag(value: bool) -> str:

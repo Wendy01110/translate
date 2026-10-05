@@ -4,6 +4,7 @@ import sys
 from collections.abc import Callable, Sequence
 
 from ai_translate.core.models import JobStatus, OcrResult
+from ai_translate.core.ocr_input import ocr_pages_error
 
 VisionRecognize = Callable[[bytes, str], tuple[str, float | None]]
 
@@ -39,8 +40,9 @@ class VisionOcrEngine:
         return self.recognize_pages([(image_bytes, mime_type)])
 
     def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
-        if not pages or any(not image_bytes for image_bytes, _mime in pages):
-            return _failure("empty_image")
+        error = ocr_pages_error(pages)
+        if error:
+            return _failure(error)
         texts: list[str] = []
         scores: list[float] = []
         try:

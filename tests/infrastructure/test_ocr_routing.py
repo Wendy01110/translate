@@ -1,11 +1,16 @@
+import httpx
+import pytest
+
+from ai_translate.config import StandardOcrSettings
 from ai_translate.core.models import JobStatus
+from ai_translate.features.ocr_translate import OcrTranslateService
 from ai_translate.infrastructure.ocr_routing import (
     RoutingOcrEngine,
     TieredLocalOcrEngine,
     TieredRemoteOcrEngine,
 )
-from ai_translate.infrastructure.ocr_space import OCR_SPACE_MAX_IMAGE_BYTES
-from tests.support import FakeOcrEngine
+from ai_translate.infrastructure.ocr_space import OCR_SPACE_MAX_IMAGE_BYTES, OcrSpaceEngine
+from tests.support import FakeOcrEngine, FakeTranslator
 
 
 def test_auto_uses_local_when_confident() -> None:
@@ -186,6 +191,80 @@ def test_tiered_remote_sends_large_or_multi_page_directly_to_advanced() -> None:
     assert multi.text == "from-advanced"
     assert standard.calls == []
     assert len(advanced.calls) == 2
+
+
+@pytest.mark.parametrize("mode", ["auto", "standard"])
+@pytest.mark.parametrize("response_kind", ["overall-code", "file-code", "deep-json"])
+def test_malformed_standard_response_respects_routing_and_translation(
+    mode: str, response_kind: str
+) -> None:
+    if response_kind == "deep-json":
+        content = b'{"nested":' + b"[" * 10_000 + b"0" + b"]" * 10_000 + b"}"
+        response = httpx.Response(200, content=content)
+        expected_error = "invalid_json"
+    else:
+        response = httpx.Response(
+            200,
+            json={
+                "OCRExitCode": {} if response_kind == "overall-code" else 1,
+                "ParsedResults": [
+                    {
+                        "FileParseExitCode": [] if response_kind == "file-code" else 1,
+                        "ParsedText": "untrusted-text",
+                    }
+                ],
+                "ErrorMessage": "untrusted-detail",
+            },
+        )
+        expected_error = "empty_ocr_text"
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return response
+
+    local = FakeOcrEngine(text=None, status=JobStatus.FAILURE, error="empty_ocr_text")
+    advanced = FakeOcrEngine(text="Advanced text", model="advanced-ocr")
+    translator = FakeTranslator()
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        standard = OcrSpaceEngine(
+            StandardOcrSettings(api_key="standard-secret", _env_file=None), client=client
+        )
+        remote = (
+            TieredRemoteOcrEngine(standard=standard, advanced=advanced)
+            if mode == "auto"
+            else standard
+        )
+        routing = RoutingOcrEngine(
+            local=local, remote=remote, mode=mode, min_confidence=0.5
+        )
+        job = OcrTranslateService(routing, translator).translate_image(
+            b"png", "image/png", "auto", "zh"
+        )
+
+    assert len(requests) == 1
+    assert "untrusted" not in repr(job)
+    if mode == "auto":
+        assert job.status is JobStatus.SUCCESS
+        assert job.source_text == "Advanced text"
+        assert job.ocr_model == "advanced-ocr"
+        assert job.translated_text == "你好"
+        assert job.error is None
+        assert len(local.calls) == 1
+        assert advanced.calls == [[(b"png", "image/png")]]
+        assert len(translator.calls) == 1
+        assert translator.calls[0].text == "Advanced text"
+        assert translator.calls[0].source_lang == "auto"
+        assert translator.calls[0].target_lang == "zh"
+    else:
+        assert job.status is JobStatus.FAILURE
+        assert job.error == expected_error
+        assert job.source_text is None
+        assert job.ocr_text is None
+        assert job.translated_text is None
+        assert local.calls == []
+        assert advanced.calls == []
+        assert translator.calls == []
 
 
 class _ResultOcr:

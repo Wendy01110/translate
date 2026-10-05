@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ai_translate.core.limits import MAX_TRANSLATION_CHARS
 from ai_translate.core.models import (
     JobKind,
     JobStatus,
@@ -19,6 +20,14 @@ class SelectionTranslateService:
         source_lang: str,
         target_lang: str,
     ) -> TranslateJob:
+        if len(text) > MAX_TRANSLATION_CHARS:
+            return TranslateJob(
+                kind=JobKind.SELECTION,
+                status=JobStatus.FAILURE,
+                source_text=text,
+                translated_text=None,
+                error="text_too_long",
+            )
         cleaned = text.strip()
         if not cleaned:
             return TranslateJob(

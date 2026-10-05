@@ -5,35 +5,42 @@ import time
 from collections.abc import Callable
 
 from ai_translate.core.errors import SelectionReadError
+from ai_translate.core.limits import MAX_TRANSLATION_CHARS
 
 EMPTY_SENTINEL = "⟦ai-translate-empty⟧"
-MAX_SELECTION_CHARS = 8000
+MAX_SELECTION_CHARS = MAX_TRANSLATION_CHARS
 COPY_WAIT_SECONDS = 0.45
 MODIFIER_WAIT_SECONDS = 0.8
 _MAC_VK_C = 0x08
 
 
 def read_clipboard() -> str:
-    completed = subprocess.run(
-        ["pbpaste"],
-        capture_output=True,
-        text=True,
-        timeout=2,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["pbpaste"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired, UnicodeError):
+        raise SelectionReadError("clipboard_read_failed") from None
     if completed.returncode != 0:
         raise SelectionReadError("clipboard_read_failed")
     return completed.stdout
 
 
 def write_clipboard(text: str) -> None:
-    completed = subprocess.run(
-        ["pbcopy"],
-        input=text,
-        text=True,
-        timeout=2,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["pbcopy"],
+            input=text,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired, UnicodeError):
+        raise SelectionReadError("clipboard_write_failed") from None
     if completed.returncode != 0:
         raise SelectionReadError("clipboard_write_failed")
 
@@ -61,17 +68,20 @@ def send_copy_key() -> None:
     _wait_modifiers_released()
     if _post_command_c():
         return
-    completed = subprocess.run(
-        [
-            "osascript",
-            "-e",
-            'tell application "System Events" to keystroke "c" using command down',
-        ],
-        capture_output=True,
-        text=True,
-        timeout=5,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            [
+                "osascript",
+                "-e",
+                'tell application "System Events" to keystroke "c" using command down',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired, UnicodeError):
+        raise SelectionReadError("copy_simulation_failed") from None
     if completed.returncode != 0:
         raise SelectionReadError("copy_simulation_failed")
 

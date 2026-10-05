@@ -1,3 +1,10 @@
+import subprocess
+import sys
+import threading
+from types import SimpleNamespace
+
+import pytest
+
 from ai_translate.core.errors import ImageSourceError, SelectionReadError
 from ai_translate.core.models import JobKind, JobStatus, ScreenRect, TranslateJob
 from ai_translate.features.ocr_translate import (
@@ -6,6 +13,7 @@ from ai_translate.features.ocr_translate import (
     OcrTranslateService,
 )
 from ai_translate.features.selection import SelectionTranslateService
+from ai_translate.infrastructure import selected_text
 from ai_translate.interfaces.listen import DesktopListener
 from tests.support import FakeOcrEngine, FakeTranslator
 
@@ -95,6 +103,96 @@ def test_selection_read_error_is_shown() -> None:
     listener.handle_selection()
     assert presenter.jobs[0].status is JobStatus.FAILURE
     assert presenter.jobs[0].error == "copy_simulation_failed"
+
+
+@pytest.mark.parametrize(
+    ("stage", "code"),
+    [
+        ("saved_read", "clipboard_read_failed"),
+        ("selection_read", "clipboard_read_failed"),
+        ("sentinel_write", "clipboard_write_failed"),
+        ("restore_write", "clipboard_write_failed"),
+        ("copy", "copy_simulation_failed"),
+    ],
+)
+@pytest.mark.parametrize("fault_type", ["launch", "timeout"])
+def test_selection_command_failure_is_presented_and_next_hotkey_can_retry(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    stage: str,
+    code: str,
+    fault_type: str,
+) -> None:
+    clipboard = {"value": "previous"}
+    read_count = 0
+    failing = True
+
+    def fail_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        if fault_type == "launch":
+            raise OSError("synthetic command failure")
+        raise subprocess.TimeoutExpired("synthetic-command", 2)
+
+    monkeypatch.setattr(selected_text.subprocess, "run", fail_run)
+    monkeypatch.setattr(selected_text, "_wait_modifiers_released", lambda: None)
+    monkeypatch.setattr(selected_text, "_post_command_c", lambda: False)
+
+    def read() -> str:
+        nonlocal read_count
+        read_count += 1
+        if failing and (
+            stage == "saved_read" or (stage == "selection_read" and read_count == 2)
+        ):
+            return selected_text.read_clipboard()
+        return clipboard["value"]
+
+    def write(text: str) -> None:
+        if failing and (
+            (stage == "sentinel_write" and text == selected_text.EMPTY_SENTINEL)
+            or (stage == "restore_write" and text == "previous")
+        ):
+            selected_text.write_clipboard(text)
+        clipboard["value"] = text
+
+    def copy() -> None:
+        if failing and stage == "copy":
+            selected_text.send_copy_key()
+        clipboard["value"] = "Hello"
+
+    source = selected_text.SelectedTextSource(
+        clipboard_read=read,
+        clipboard_write=write,
+        copy_selection=copy,
+        wait=lambda _seconds: None,
+        can_simulate_copy=lambda: True,
+    )
+    translator = FakeTranslator(translated_text="你好")
+    listener, presenter = _listener(
+        selection=SelectionTranslateService(translator),
+        read_selected_text=source.read_selected_text,
+    )
+
+    listener.handle_selection()
+
+    assert translator.calls == []
+    assert presenter.statuses == []
+    assert len(presenter.jobs) == 1
+    job = presenter.jobs[0]
+    assert job.kind is JobKind.SELECTION
+    assert job.status is JobStatus.FAILURE
+    assert job.error == code
+    assert job.source_text is None
+    assert job.translated_text is None
+    assert clipboard["value"] == ("Hello" if stage == "restore_write" else "previous")
+    assert capsys.readouterr() == ("", "")
+
+    failing = False
+    saved = clipboard["value"]
+    listener.handle_selection()
+
+    assert len(translator.calls) == 1
+    assert presenter.jobs[-1].status is JobStatus.SUCCESS
+    assert presenter.jobs[-1].translated_text == "你好"
+    assert clipboard["value"] == saved
 
 
 def test_run_passes_configured_hotkey_strings() -> None:
@@ -323,6 +421,21 @@ class _AsyncPicker:
         self.complete(None)
 
 
+@pytest.fixture
+def _fake_live_workers(monkeypatch):
+    workers: list[object] = []
+
+    class Worker:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def start(self) -> None:
+            workers.append(self)
+
+    monkeypatch.setattr("ai_translate.interfaces.listen.threading.Thread", Worker)
+    return workers
+
+
 class _StopOnFirstWait:
     def __init__(self) -> None:
         self.waits: list[float] = []
@@ -397,6 +510,128 @@ def test_live_hotkey_cancels_open_async_picker() -> None:
     assert listener._live_starting is False
     assert listener.live_running is False
     assert presenter.jobs == []
+
+
+@pytest.mark.parametrize("old_result", [None, ScreenRect(x=10, y=20, width=80, height=40)])
+def test_old_picker_callback_cannot_affect_restarted_session(old_result, _fake_live_workers) -> None:
+    picker = _AsyncPicker()
+    captured: list[ScreenRect] = []
+    listener, presenter = _live_listener(
+        pick_region=picker,
+        capture_rect=lambda rect: captured.append(rect) or (b"frame-a", "image/png"),
+    )
+    listener.handle_live_ocr()
+    old_callback = picker.callback
+    listener.stop_live()
+    listener.handle_live_ocr()
+    new_callback = picker.callback
+
+    old_callback(old_result)
+    assert listener._live_starting is True
+    assert listener.live_running is False
+    assert listener._live_rect is None
+    assert presenter.statuses == []
+    assert _fake_live_workers == []
+    assert captured == []
+
+    rect = ScreenRect(x=-100, y=60, width=200, height=100)
+    new_callback(rect)
+    new_callback(ScreenRect(x=0, y=0, width=40, height=40))
+    assert listener._live_rect == rect
+    assert listener.live_running is True
+    assert len(_fake_live_workers) == 1
+    assert presenter.statuses == ["识别中…"]
+    assert listener.live_tick() == "show"
+    assert captured == [rect]
+    listener.stop_live()
+
+
+def test_queued_old_picker_start_is_discarded(monkeypatch, _fake_live_workers) -> None:
+    queued: list[object] = []
+    helper = SimpleNamespace(callAfter=queued.append)
+    monkeypatch.setitem(sys.modules, "Foundation", SimpleNamespace(
+        NSThread=SimpleNamespace(isMainThread=lambda: False),
+    ))
+    monkeypatch.setitem(sys.modules, "PyObjCTools", SimpleNamespace(AppHelper=helper))
+    monkeypatch.setitem(sys.modules, "PyObjCTools.AppHelper", helper)
+    picker = _AsyncPicker()
+    picker.needs_main_thread = True
+    listener, presenter = _live_listener(pick_region=picker)
+    listener.handle_live_ocr()
+    listener.stop_live()
+    listener.handle_live_ocr()
+    assert len(queued) == 2
+
+    queued[0]()
+    assert picker.callback is None
+    assert listener._live_starting is True
+    queued[1]()
+    assert callable(picker.callback)
+    picker.complete(ScreenRect(x=10, y=20, width=80, height=40))
+    assert listener.live_running is True
+    assert len(_fake_live_workers) == 1
+    assert presenter.statuses == ["识别中…"]
+    listener.stop_live()
+
+
+def test_old_picker_start_failure_cannot_clear_new_session(monkeypatch, _fake_live_workers) -> None:
+    picker = _AsyncPicker()
+    listener, _presenter = _live_listener(pick_region=picker)
+    original_start = picker.start
+    first_start = [True]
+
+    def start(callback):
+        original_start(callback)
+        if first_start[0]:
+            first_start[0] = False
+            listener.stop_live()
+            listener.handle_live_ocr()
+            raise RuntimeError("Synthetic picker failure")
+
+    monkeypatch.setattr(picker, "start", start)
+    with pytest.raises(RuntimeError, match="Synthetic picker failure"):
+        listener.handle_live_ocr()
+    assert listener._live_starting is True
+    assert _fake_live_workers == []
+    picker.complete(ScreenRect(x=10, y=20, width=80, height=40))
+    assert listener.live_running is True
+    assert len(_fake_live_workers) == 1
+    listener.stop_live()
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_current_picker_start_failure_allows_retry(monkeypatch, asynchronous, _fake_live_workers) -> None:
+    def fail(*_args):
+        raise RuntimeError("Synthetic picker failure")
+
+    picker = _AsyncPicker() if asynchronous else fail
+    if asynchronous:
+        monkeypatch.setattr(picker, "start", fail)
+    listener, presenter = _live_listener(pick_region=picker)
+    with pytest.raises(RuntimeError, match="Synthetic picker failure"):
+        listener.handle_live_ocr()
+    assert listener._live_starting is False
+    assert listener.live_running is False
+    assert presenter.statuses == []
+    assert _fake_live_workers == []
+
+    listener._pick_region = lambda: ScreenRect(x=10, y=20, width=80, height=40)
+    listener.handle_live_ocr()
+    assert listener.live_running is True
+    assert len(_fake_live_workers) == 1
+    listener.stop_live()
+
+
+def test_stop_during_live_start_status_does_not_start_worker(monkeypatch, _fake_live_workers) -> None:
+    listener, presenter = _live_listener()
+
+    def stop_on_status(_message, source=None):
+        listener.stop_live()
+
+    monkeypatch.setattr(presenter, "show_status", stop_on_status)
+    listener.handle_live_ocr()
+    assert listener.live_running is False
+    assert _fake_live_workers == []
 
 
 def test_one_shot_ocr_is_ignored_while_live_runs() -> None:
@@ -511,6 +746,78 @@ def test_stop_during_translation_discards_stale_result() -> None:
     assert presenter.jobs == []
 
 
+@pytest.mark.parametrize("stage", ["ocr", "translation"])
+@pytest.mark.parametrize("switch_back", [False, True])
+def test_language_switch_discards_inflight_live_work_and_next_tick_continues(
+    stage: str,
+    switch_back: bool,
+) -> None:
+    started = threading.Event()
+    release = threading.Event()
+    ocr = FakeOcrEngine(text="Hello")
+    translator = FakeTranslator(translated_text="Synthetic translation")
+    owner = ocr if stage == "ocr" else translator
+    method = "recognize_pages" if stage == "ocr" else "translate"
+    original = getattr(owner, method)
+
+    def blocked_call(request):
+        started.set()
+        assert release.wait(3)
+        return original(request)
+
+    setattr(owner, method, blocked_call)
+    listener, presenter = _live_listener(ocr=ocr, translator=translator)
+    listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
+    listener._live_stop.clear()
+    listener._live_running = True
+    generation = listener._live_generation
+    actions: list[str | None] = []
+    worker = threading.Thread(
+        target=lambda: actions.append(listener.live_tick()), daemon=True
+    )
+    worker.start()
+    try:
+        assert started.wait(3)
+        listener.set_target_lang("ja")
+        if switch_back:
+            listener.set_target_lang("zh")
+    finally:
+        release.set()
+        worker.join(3)
+
+    assert not worker.is_alive()
+    assert actions == [LIVE_STOPPED]
+    assert presenter.jobs == []
+    assert listener._live_memory == LiveOcrMemory()
+    assert listener.live_running is True
+    assert listener._live_generation == generation
+    assert listener.live_tick() == "show"
+    expected_target = "zh" if switch_back else "ja"
+    expected_calls = [expected_target] if stage == "ocr" else ["zh", expected_target]
+    assert [request.target_lang for request in translator.calls] == expected_calls
+    assert len(presenter.jobs) == 1
+    assert listener.live_tick() == "skip_frame"
+
+
+def test_language_switch_clears_pending_retry_for_the_same_frame() -> None:
+    now = [0.0]
+    translator = FakeTranslator(
+        translated_text=None, status=JobStatus.FAILURE, error="timeout"
+    )
+    listener, _ = _live_listener(
+        ocr_translate=OcrTranslateService(FakeOcrEngine(), translator, clock=lambda: now[0])
+    )
+    listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
+    listener._live_stop.clear()
+    listener._live_running = True
+    assert listener.live_tick() == "show"
+    assert listener.live_tick() == "skip_frame"
+
+    listener.set_target_lang("ja")
+    assert listener.live_tick() == "show"
+    assert [request.target_lang for request in translator.calls] == ["zh", "ja"]
+
+
 def test_replace_runtime_stops_active_live_loop() -> None:
     listener, _presenter = _live_listener()
     listener._live_rect = ScreenRect(x=10, y=20, width=80, height=40)
@@ -529,3 +836,36 @@ def test_replace_runtime_stops_active_live_loop() -> None:
 
     assert listener.live_running is False
     assert listener._live_rect is None
+
+
+def test_replace_runtime_cancels_pending_picker_and_new_session_uses_new_settings(_fake_live_workers) -> None:
+    picker = _AsyncPicker()
+    old_ocr = FakeOcrEngine()
+    old_translator = FakeTranslator()
+    listener, presenter = _live_listener(pick_region=picker, ocr=old_ocr, translator=old_translator)
+    listener.handle_live_ocr()
+    old_callback = picker.callback
+    new_ocr = FakeOcrEngine()
+    new_translator = FakeTranslator()
+    listener.replace_runtime(
+        selection=SelectionTranslateService(new_translator),
+        ocr_translate=OcrTranslateService(new_ocr, new_translator),
+        source_lang="en", target_lang="ja",
+        selection_hotkey="alt+e", ocr_hotkey="alt+w", live_hotkey="alt+q",
+    )
+    assert picker.cancelled == 1
+    assert listener._live_starting is False
+    assert listener.live_running is False
+    old_callback(ScreenRect(x=10, y=20, width=80, height=40))
+    assert presenter.statuses == []
+    assert _fake_live_workers == []
+
+    listener.handle_live_ocr()
+    picker.complete(ScreenRect(x=30, y=40, width=120, height=60))
+    assert len(_fake_live_workers) == 1
+    assert listener.live_tick() == "show"
+    assert old_ocr.calls == []
+    assert old_translator.calls == []
+    assert len(new_ocr.calls) == 1
+    assert [(call.source_lang, call.target_lang) for call in new_translator.calls] == [("en", "ja")]
+    listener.stop_live()

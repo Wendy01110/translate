@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from math import isfinite
 
 
 class JobKind(str, Enum):
@@ -33,8 +34,15 @@ class ScreenRect:
         return ScreenRect(x=x, y=y, width=width, height=height)
 
     def is_usable(self, min_size: float = 16.0) -> bool:
+        if not all(isfinite(value) for value in (self.x, self.y, self.width, self.height)):
+            return False
         rect = self.canonical()
-        return rect.width >= min_size and rect.height >= min_size
+        return (
+            isfinite(rect.x)
+            and isfinite(rect.y)
+            and rect.width >= min_size
+            and rect.height >= min_size
+        )
 
 
 @dataclass(frozen=True)

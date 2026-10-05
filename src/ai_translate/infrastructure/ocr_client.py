@@ -8,8 +8,10 @@ import httpx
 
 from ai_translate.config import OcrSettings
 from ai_translate.core.models import JobStatus, OcrResult
+from ai_translate.core.ocr_input import ocr_pages_error
 from ai_translate.infrastructure.ocr_text import clean_ocr_text
 from ai_translate.infrastructure.openai_compat import (
+    completion_content,
     post_chat_completion,
 )
 
@@ -47,8 +49,9 @@ class HttpOcrEngine:
     def recognize_pages(self, pages: Sequence[tuple[bytes, str]]) -> OcrResult:
         if not self._settings.ready:
             return self._failure("ocr_not_configured")
-        if not pages or any(not image_bytes for image_bytes, _mime in pages):
-            return self._failure("empty_image")
+        error = ocr_pages_error(pages)
+        if error:
+            return self._failure(error)
 
         try:
             image_mode = resolve_image_mode(len(pages), self._settings.image_mode)
@@ -104,7 +107,7 @@ class HttpOcrEngine:
         if error or body is None:
             return self._failure(error or "empty_response", image_mode=image_mode)
 
-        raw_text, finish_reason = _choice_content(body)
+        raw_text, finish_reason = completion_content(body)
         if finish_reason == "length":
             return self._failure("ocr_output_truncated", image_mode=image_mode)
         if raw_text is None:
@@ -164,22 +167,3 @@ def _ocr_prompt(*, page_count: int, unlimited_contract: bool) -> str:
         if page_count == 1
         else _OPENAI_VISION_MULTI_PROMPT
     )
-
-
-def _choice_content(payload: dict[str, Any]) -> tuple[str | None, str | None]:
-    choices = payload.get("choices")
-    if not isinstance(choices, list) or not choices:
-        return None, None
-    first = choices[0]
-    if not isinstance(first, dict):
-        return None, None
-    finish_reason = first.get("finish_reason")
-    reason = finish_reason if isinstance(finish_reason, str) else None
-    message = first.get("message")
-    if not isinstance(message, dict):
-        return None, reason
-    content = message.get("content")
-    if not isinstance(content, str):
-        return None, reason
-    cleaned = content.strip()
-    return (cleaned or None), reason

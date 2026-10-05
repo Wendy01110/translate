@@ -4,6 +4,12 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ai_translate.core.limits import (
+    MAX_IMAGE_BYTES,
+    MAX_OCR_BATCH_BYTES,
+    MAX_OCR_PAGES,
+    MAX_TRANSLATION_CHARS,
+)
 from ai_translate.core.models import JobKind, JobStatus, TranslateJob
 
 
@@ -46,15 +52,21 @@ _ERROR_TEXT = {
     "clipboard_read_failed": "无法读取剪贴板。",
     "clipboard_write_failed": "无法写入剪贴板。",
     "selection_too_long": "选中的文字太长。",
-    "text_too_long": "文字太长。",
+    "text_too_long": f"文字超过 {MAX_TRANSLATION_CHARS} 字符，请缩短后重试。",
+    "request_url_too_long": "请求地址过长，请缩短原文或切换翻译来源。",
+    "response_too_large": "上游返回内容过大，请缩小输入后重试。",
     "busy": "正在翻译，请稍后再试。",
     "unsupported_language": "当前翻译源不支持这个语言。",
     "http_403": "网页翻译被拒绝，可稍后再试或改用官方密钥源。",
     "http_429": "翻译请求太频繁，请稍后再试。",
     "translate_not_configured": "翻译模型未配置。",
+    "translate_output_truncated": "译文未生成完整，请缩短原文后重试。",
     "screenshot_cancelled": "已取消圈选。",
     "region_too_small": "圈选区域太小。",
     "screenshot_failed": "无法截取该区域。",
+    "image_too_large": f"图片超过 {MAX_IMAGE_BYTES // (1024 * 1024)} MiB，请缩小图片或圈选范围。",
+    "ocr_too_many_pages": f"一次最多识别 {MAX_OCR_PAGES} 页，请减少图片数量。",
+    "ocr_batch_too_large": f"图片合计超过 {MAX_OCR_BATCH_BYTES // (1024 * 1024)} MiB，请减少或缩小图片。",
     "empty_ocr_text": "没有识别到文字。",
     "ocr_not_configured": "OCR 尚未配置。",
     "vision_unavailable": "本地普通 Vision OCR 在当前系统不可用。",
@@ -490,7 +502,6 @@ class _AppKitBackend:
         self._placed = False
         self._pinned = False
         self._needs_focus = False
-        self._handling_resign_key = False
         app = NSApplication.sharedApplication()
         app.setActivationPolicy_(1)
 
@@ -709,18 +720,9 @@ class _AppKitBackend:
         self._window.orderFrontRegardless()
 
     def window_did_resign_key(self) -> None:
-        if (
-            self._window is None
-            or self._pinned
-            or getattr(self, "_handling_resign_key", False)
-        ):
+        if self._window is None or self._pinned:
             return
-        self._handling_resign_key = True
         self._needs_focus = True
-        try:
-            self._window.orderOut_(None)
-        finally:
-            self._handling_resign_key = False
 
     def copy_translation(self) -> None:
         if self._translation is None:
