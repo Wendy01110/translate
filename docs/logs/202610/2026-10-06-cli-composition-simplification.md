@@ -27,8 +27,10 @@
 
 优先做 macOS 字幕条长文的有界布局，再随修改逐步把源码字符串断言换成控件/回调行为验证；有界历史等新能力继续独立待进行。现有分层和桌面共享运行时有明确消费者，保留；不为缩短文件拆出新抽象，不切换框架，不一次扩展历史、监听、TTS 和系统音频。依据与验收入口见[后续优化计划](../../plan/pending/2026-10-06-core-optimization-follow-on.md)。
 
-本轮精简只验证本地代码和离线语义，不代表 Windows 原生 UI、真实提供方、安装 App 的物理热键/截图已复验。对应[实施计划](../../plan/in-progress/2026-10-06-cli-composition-simplification.md)；开放 Issue 目录没有条目，本轮无需关闭 Issue。
+本轮精简只验证本地代码和离线语义，不代表 Windows 原生 UI、真实提供方、安装 App 的物理热键/截图已复验。对应[已完成的实施计划](../../plan/completed/2026-10-06-cli-composition-simplification.md)；开放 Issue 目录没有条目，本轮无需关闭 Issue。
 
 ## Git 交付
 
-沿用当前任务 Requester 的提交与推送授权，只暂存本轮已复核的代码、测试、文档和计划移动；提交与远端回读结果在实际执行后补记。临时原生验收脚本、合成图片、真实配置和模型缓存不进入 Git。
+沿用当前任务 Requester 的提交与推送授权，代码与首轮文档提交 `decf5396288af92eae6b6701825cc5f5d33c37e4`（`fix: 修正实时 OCR 提醒并精简 CLI 服务构造`）已普通推送至 `origin/main`。暂存文件逐个与工作区字节核对，临时原生验收脚本、合成图片、真实配置和模型缓存均未进入 Git。
+
+推送后本地 HEAD、`origin/main` 与 `git -c http.version=HTTP/1.1 ls-remote origin refs/heads/main` 回读均为上述代码提交，工作区当时干净。HTTP/1.1 只作为本次命令参数，没有修改系统或 Git 配置。此后收尾仅移动已完成的 CLI 计划并同步文档入口、计划索引和本文；最终提交以 Git 历史为准。

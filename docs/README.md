@@ -17,7 +17,7 @@
 
 ## 当前工作
 
-- [CLI 服务构造精简与后续优化取舍](./plan/in-progress/2026-10-06-cli-composition-simplification.md)
+当前没有进行中的计划；后续工作从[计划状态索引](./plan/README.md)进入。
 
 ## 按任务查找
 
