@@ -11,11 +11,10 @@
 
 ## 进行中
 
-当前没有进行中的计划。
+- [核心路径后续优化与精简取舍](./in-progress/2026-10-06-core-optimization-follow-on.md)：实施 macOS 字幕条长文的有界布局，在改动范围内验证布局与回调行为；有界历史独立待进行。
 
 ## 待进行
 
-- [核心路径后续优化与精简取舍](./pending/2026-10-06-core-optimization-follow-on.md)：优先处理 macOS 字幕条长文的有界布局，随修改替换源码字符串断言，再独立决定有界历史；尚未实施。
 - [TTime 对照后的后续能力](./pending/2026-08-19-ttime-inspired-follow-on.md)：历史、工具栏和剪贴板监听等；菜单栏 App 与输入能力已实施，macOS 输入入口现与划词/OCR 共用翻译工作区。
 - [视频字幕实时识别](./pending/2026-08-19-live-video-subtitles.md)：路径 A 的屏幕实时 OCR 已完成；本文件只留系统音频转写，本轮不实施。
 

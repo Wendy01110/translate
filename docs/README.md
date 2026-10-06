@@ -9,15 +9,15 @@
 - 本地早期桌面翻译工具，macOS 使用菜单栏，Windows 11 x64 使用 PySide6 / Qt Quick 系统托盘；两端输入、划词和单次 OCR 复用同一翻译工作区。安装入口、操作方式和已知限制见[项目 README](../README.md)，平台规则见[桌面热键](./design/desktop-hotkeys.md)与[Windows 桌面](./design/windows-desktop.md)。
 - 翻译默认 Google 内置网页源，也支持其它内置、官方与 OpenAI 兼容来源；翻译与四层 OCR 独立配置，不互借地址、密钥、模型或超时。只读一份配置，`config-check` 只回读静态状态；设置应用按受影响侧更新客户端，保留未变配置的已加载模型，见[配置设计](./design/configuration.md)。
 - OCR 自动顺序为 macOS Vision、可选 PP-OCRv6、OCR.space 和 API 高级；Windows 从 PP-OCRv6 开始。API 普通有单张/1 MB 边界，Paddle 未安装时直接跳过；强制模式、图片预算与降级规则见[OCR 分流](./design/ocr-routing.md)。首次加载提醒在普通工作区显示完整说明，在实时字幕条显示简短提示。
-- 区域实时 OCR 支持异步圈选、画面/文字去重、有限翻译补试和停止；旧会话/旧语言结果不能回写，设置应用需重新圈选。字幕条保持置顶、不抢焦点、位于圈选区域外侧，见[屏幕实时 OCR](./design/live-screen-ocr.md)。
+- 区域实时 OCR 支持异步圈选、画面/文字去重、有限翻译补试和停止；旧会话/旧语言结果不能回写，设置应用需重新圈选。字幕条保持置顶、不抢焦点、位于圈选区域外侧；macOS 长文换行、有界增高并可滚动读到末尾，见[屏幕实时 OCR](./design/live-screen-ocr.md)。
 - 翻译输入、图片/页数、截图区域与最终 HTTP 响应均有预算；系统输入命令与异常响应返回稳定失败，OCR 后翻译失败保留原文。共享运行时与依赖方向见[架构设计](./design/architecture.md)，状态契约以 `core/models.py` 为准。
 - 四层 OCR 分流、Windows MVP 和 Qt UI 迁移已完成；当前没有开放 Issue。后续优化与产品能力按[计划索引](./plan/README.md)逐项推进，不同时扩展全部能力。
 
-验证证据按层级保存：本轮 macOS [首次提醒验收](./logs/202610/2026-10-06-native-ocr-reminder-verification.md)使用原生菜单 action、缓存模型与合成输入，未重启安装 App 或复验物理热键/真实截屏；Windows Qt 信号也不等于物理托盘点击。macOS 正式 App 的跨应用/双屏全屏焦点行为仍保留[既有复验边界](./logs/202609/2026-09-08-overlay-focus-loss.md)。离线测试、原生隔离显示、真实提供方和业务验收不能互相替代。
+验证证据按层级保存：macOS [首次提醒验收](./logs/202610/2026-10-06-native-ocr-reminder-verification.md)使用原生菜单 action、缓存模型与合成输入；[字幕布局验收](./logs/202610/2026-10-06-macos-live-overlay-layout.md)使用原生窗口和合成文本，验证换行、滚动、宽度调整、复制与关闭。两者均未重启安装 App 或复验物理热键/真实截屏；Windows Qt 信号也不等于物理托盘点击。macOS 正式 App 的跨应用/双屏全屏焦点行为仍保留[既有复验边界](./logs/202609/2026-09-08-overlay-focus-loss.md)。离线测试、原生隔离显示、真实提供方和业务验收不能互相替代。
 
 ## 当前工作
 
-当前没有进行中的计划；后续工作从[计划状态索引](./plan/README.md)进入。
+- [核心路径后续优化与精简取舍](./plan/in-progress/2026-10-06-core-optimization-follow-on.md)：本轮改善 macOS 实时字幕条长文布局。
 
 ## 按任务查找
 

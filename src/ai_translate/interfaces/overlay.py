@@ -1346,7 +1346,10 @@ def _text_view_copy_payload(view: object) -> str:
     selected = view.selectedRange()
     start = int(getattr(selected, "location", selected[0]))
     length = int(getattr(selected, "length", selected[1]))
-    piece = full[start : start + length] if length > 0 else ""
+    piece = ""
+    if length > 0:
+        # AppKit 的 NSRange 按 UTF-16 code unit 计数。
+        piece = full.encode("utf-16-le")[2 * start : 2 * (start + length)].decode("utf-16-le")
     return overlay_text_for_copy(selection=piece, full=full)
 
 

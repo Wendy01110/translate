@@ -1,6 +1,8 @@
 import sys
 from types import SimpleNamespace
 
+import pytest
+
 import ai_translate.interfaces.overlay as overlay_module
 from ai_translate.core.models import JobKind, JobStatus, TranslateJob
 from ai_translate.interfaces.overlay import (
@@ -120,6 +122,15 @@ def test_text_view_copy_payload_reads_selected_range() -> None:
             return (0, 0)
 
     assert _text_view_copy_payload(_Empty()) == "你好世界"
+
+
+@pytest.mark.parametrize(
+    ("full", "selected", "expected"),
+    [("A😀BC", (1, 2), "😀"), ("😀BC", (2, 2), "BC")],
+)
+def test_text_view_copy_uses_utf16_selection_offsets(full, selected, expected) -> None:
+    view = SimpleNamespace(string=lambda: full, selectedRange=lambda: selected)
+    assert _text_view_copy_payload(view) == expected
 
 
 def test_edit_menu_binds_command_c_to_copy() -> None:

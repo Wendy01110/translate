@@ -1,9 +1,13 @@
 import sys
 from types import SimpleNamespace
 
+import pytest
+
+import ai_translate.interfaces.live_overlay as live_overlay_module
 import ai_translate.interfaces.region_picker as region_picker_module
 from ai_translate.core.models import JobKind, JobStatus, ScreenRect, TranslateJob
 from ai_translate.interfaces.live_overlay import (
+    LIVE_BAR_HEIGHT,
     display_for_anchor,
     format_live_overlay,
     live_overlay_rect,
@@ -27,6 +31,47 @@ def test_live_overlay_places_above_when_below_does_not_fit() -> None:
     placed = live_overlay_rect(anchor, screen=screen, bar_height=80, gap=10)
     assert placed.y >= anchor.y + anchor.height
     assert not rects_intersect(placed, anchor)
+
+
+def test_live_overlay_height_includes_chrome_and_limits_source_space() -> None:
+    height = live_overlay_module.live_overlay_height(120, 18, chrome_height=32)
+    assert height == 192
+    assert live_overlay_module.live_overlay_height(120, 18, chrome_height=42) == height + 10
+    assert live_overlay_module.live_overlay_height(120, 2000, chrome_height=32) == 214
+
+
+def test_live_overlay_height_is_bounded_for_short_and_long_text() -> None:
+    assert live_overlay_module.live_overlay_height(20, 0, chrome_height=32) == LIVE_BAR_HEIGHT
+    assert live_overlay_module.live_overlay_height(10000, 10000, chrome_height=32) == 240
+
+
+@pytest.mark.parametrize(
+    ("screen", "anchor"),
+    [
+        (ScreenRect(0, 0, 640, 180), ScreenRect(80, 20, 280, 30)),
+        (ScreenRect(0, 0, 800, 300), ScreenRect(80, 180, 280, 60)),
+        (ScreenRect(0, 0, 1000, 800), ScreenRect(80, 20, 300, 740)),
+        (ScreenRect(0, 0, 1000, 800), ScreenRect(700, 20, 220, 740)),
+        (ScreenRect(-1000, -800, 800, 600), ScreenRect(-920, -750, 300, 50)),
+    ],
+)
+def test_live_overlay_adapts_to_free_screen_space_without_overlap(screen, anchor) -> None:
+    placed = live_overlay_rect(anchor, screen=screen, bar_height=240)
+
+    assert not rects_intersect(placed, anchor)
+    assert screen.x <= placed.x
+    assert placed.x + placed.width <= screen.x + screen.width
+    assert screen.y <= placed.y
+    assert placed.y + placed.height <= screen.y + screen.height
+    assert LIVE_BAR_HEIGHT <= placed.height <= 240
+
+
+def test_live_overlay_uses_resized_width_and_keeps_full_screen_region_outside() -> None:
+    screen = ScreenRect(0, 0, 1000, 800)
+    anchor = ScreenRect(80, 200, 700, 60)
+    placed = live_overlay_rect(anchor, screen=screen, bar_width=300)
+    assert placed.width == 300
+    assert not rects_intersect(live_overlay_rect(screen, screen=screen), screen)
 
 
 def test_live_overlay_does_not_steal_focus() -> None:
