@@ -11,12 +11,12 @@
 
 ## 进行中
 
-当前没有进行中的计划。
+- [桌面可靠性、文档与有界历史收尾](./in-progress/2026-10-06-desktop-follow-through.md)：代码、606 项离线回归、历史与文档收尾完成；正式 App 连接超时，物理热键/圈选、跨应用、双屏全屏和 Windows 新历史窗口验收等待工具与设备条件。
 
 ## 待进行
 
-- [TTime 对照后的后续能力](./pending/2026-08-19-ttime-inspired-follow-on.md)：历史、工具栏和剪贴板监听等；菜单栏 App 与输入能力已实施，macOS 输入入口现与划词/OCR 共用翻译工作区。
-- [视频字幕实时识别](./pending/2026-08-19-live-video-subtitles.md)：路径 A 的屏幕实时 OCR 已完成；本文件只留系统音频转写，本轮不实施。
+- [TTime 对照后的后续能力](./pending/2026-08-19-ttime-inspired-follow-on.md)：有界历史已实施，工具栏、可选剪贴板监听与 TTS 后置；普通输入、划词和单次 OCR 继续共用工作区。
+- [系统音频转写后续计划](./pending/2026-08-19-live-video-subtitles.md)：画面字幕 OCR 已完成；仅保留独立 ASR，本轮不实施。
 
 ## 暂时跳过
 
@@ -24,10 +24,10 @@
 
 ## 最近完成
 
+- [有界本地翻译历史](./completed/2026-10-06-bounded-translation-history.md)：默认关闭，50 条/每栏 8000 字符/文件 1 MiB，成功单次记录、查看、复用无请求及确认清空；完整离线 606 项、macOS 原生隔离五组通过，正式 App 和 Windows 新 QML 设备验收由总计划跟踪。
 - [核心路径后续优化与精简取舍](./completed/2026-10-06-core-optimization-follow-on.md)：macOS 字幕长文换行、有界增高和独立滚动，按可见区域适应外侧空间，修正 UTF-16 选区复制；定向 130 项、完整离线 557 项及 7 组原生合成内容验证通过，代码已推送并回读 SHA。有界历史独立待进行。
 - [CLI 服务构造精简与后续优化取舍](./completed/2026-10-06-cli-composition-simplification.md)：按当前子命令构造所需服务，合并三个平台重复组合；定向 56 项、完整离线 547 项通过，代码已推送并回读 SHA，后续布局优化见对应完成计划。
 - [本地与 API 四层 OCR 分流](./completed/2026-08-20-tiered-ocr-routing.md)：四层实现与既有两端验收完成；最后一项 macOS 首次提醒已用原生菜单 action、缓存 small 模型及真实窗口绘制闭合，字幕条短提示在最小 280 宽度完整可见；定向 63 项、完整离线 535 项通过，安装 App 的物理点击与真实截屏未在本轮复验。
 - [项目复核、异常响应收口与 Git 交付](./completed/2026-10-06-project-review-and-git-delivery.md)：审阅并提交累积稳定性修复，补齐全部翻译与 API 高级 OCR 的过深 JSON、DeepL 响应类型失败；完整离线 534 项、文档 6 项、CLI 静态回读和依赖检查通过，代码已推送并回读 SHA。
-- [OCR.space 异常响应与自动降级](./completed/2026-10-05-ocr-space-response-failures.md)：普通层异常状态字段与过深 JSON 稳定失败，自动模式继续高级并只翻译其文字，强制普通模式停止；定向 69 项、完整离线 520 项通过，真实提供方与桌面未在本轮验收。
 
 完整已完成计划见 [completed/](./completed/)，对应完成日志见 [../logs/](../logs/)。默认索引不逐条重复历史记录；需要追溯旧状态时，再按日期打开对应文件或查看 Git 历史。

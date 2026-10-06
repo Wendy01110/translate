@@ -9,7 +9,7 @@ from collections.abc import Callable
 from ai_translate.core.errors import ImageSourceError, SelectionReadError
 from ai_translate.core.hotkeys import HotkeyMatcher, parse_hotkey
 from ai_translate.core.models import JobKind, JobStatus, ScreenRect, TranslateJob
-from ai_translate.core.ports import ResultPresenter
+from ai_translate.core.ports import LiveResultPresenter, ResultPresenter
 from ai_translate.features.ocr_translate import (
     LIVE_SHOW,
     LIVE_STOPPED,
@@ -42,9 +42,10 @@ class DesktopListener:
         live_hotkey: str = "alt+q",
         pick_region: Callable[[], ScreenRect | None] | None = None,
         capture_rect: Callable[[ScreenRect], tuple[bytes, str]] | None = None,
-        live_presenter: ResultPresenter | None = None,
+        live_presenter: LiveResultPresenter | None = None,
         live_interval_seconds: float = LIVE_OCR_INTERVAL_SECONDS,
         hash_image: Callable[[bytes], str] | None = None,
+        record_result: Callable[[TranslateJob, str, str], object] | None = None,
     ) -> None:
         self._selection = selection
         self._ocr_translate = ocr_translate
@@ -65,6 +66,7 @@ class DesktopListener:
         self._live_presenter = live_presenter or presenter
         self._live_interval_seconds = live_interval_seconds
         self._hash_image = hash_image or default_image_signature
+        self._record_result = record_result
         self._busy = threading.Lock()
         self._hotkeys: object | None = None
         self._live_stop = threading.Event()
@@ -93,6 +95,10 @@ class DesktopListener:
     @property
     def target_lang(self) -> str:
         return self._target_lang
+
+    @property
+    def translation_busy(self) -> bool:
+        return self._busy.locked()
 
     @property
     def live_running(self) -> bool:
@@ -214,7 +220,7 @@ class DesktopListener:
             set_anchor(selected_rect)
         if not self._live_is_current(generation):
             return
-        self._live_presenter.show_status("识别中…")
+        self._show_live_status("识别中…", generation)
         with self._live_state_lock:
             if not self._live_is_current(generation):
                 return
@@ -256,14 +262,15 @@ class DesktopListener:
                 return LIVE_STOPPED
             if exc.code == "screenshot_cancelled":
                 return None
-            self._live_presenter.show(
+            self._show_live_job(
                 TranslateJob(
                     kind=JobKind.OCR,
                     status=JobStatus.FAILURE,
                     source_text=None,
                     translated_text=None,
                     error=exc.code,
-                )
+                ),
+                generation,
             )
             return exc.code
         if not self._live_is_current(generation):
@@ -293,8 +300,28 @@ class DesktopListener:
                 return LIVE_STOPPED
             self._live_memory = result.memory
             if result.action == LIVE_SHOW and result.job is not None:
-                self._live_presenter.show(result.job)
+                self._show_live_job(result.job, generation)
         return result.action
+
+    def _live_current_check(self, generation: int) -> Callable[[], bool]:
+        memory = self._live_memory
+        return lambda: self._live_is_current(generation) and self._live_memory is memory
+
+    def _show_live_job(self, job: TranslateJob, generation: int) -> None:
+        is_current = self._live_current_check(generation)
+        guarded = getattr(self._live_presenter, "show_if_current", None)
+        if callable(guarded):
+            guarded(job, is_current=is_current)
+        elif is_current():
+            self._live_presenter.show(job)
+
+    def _show_live_status(self, message: str, generation: int) -> None:
+        is_current = self._live_current_check(generation)
+        guarded = getattr(self._live_presenter, "show_status_if_current", None)
+        if callable(guarded):
+            guarded(message, is_current=is_current)
+        elif is_current():
+            self._live_presenter.show_status(message)
 
     def _live_is_current(self, generation: int) -> bool:
         return (
@@ -313,13 +340,29 @@ class DesktopListener:
                 error="busy",
             )
         try:
-            return self._selection.translate_text(
+            source_lang, target_lang = self._translation_languages()
+            result = self._selection.translate_text(
                 text,
-                self._source_lang,
-                self._target_lang,
+                source_lang,
+                target_lang,
             )
+            self._record_completed(result, source_lang, target_lang)
+            return result
         finally:
             self._busy.release()
+
+    def _translation_languages(self) -> tuple[str, str]:
+        with self._live_state_lock:
+            return self._source_lang, self._target_lang
+
+    def _record_completed(self, job: TranslateJob, source_lang: str, target_lang: str) -> None:
+        if self._record_result is None or job.status is not JobStatus.SUCCESS:
+            return
+        try:
+            self._record_result(job, source_lang, target_lang)
+        except Exception:
+            # 历史是可选附属能力，失败不得影响翻译结果或泄露文本。
+            pass
 
     def run(self) -> int:
         if sys.platform not in {"darwin", "win32"}:
@@ -447,11 +490,13 @@ class DesktopListener:
             return
         if text.strip():
             self._presenter.show_status("translating", source=text)
+        source_lang, target_lang = self._translation_languages()
         result = self._selection.translate_text(
             text,
-            self._source_lang,
-            self._target_lang,
+            source_lang,
+            target_lang,
         )
+        self._record_completed(result, source_lang, target_lang)
         self._presenter.show(result)
 
     def _ocr_job(self) -> None:
@@ -470,12 +515,14 @@ class DesktopListener:
                 )
             return
         self._presenter.show_status("translating")
+        source_lang, target_lang = self._translation_languages()
         result = self._ocr_translate.translate_image(
             image_bytes,
             mime_type,
-            self._source_lang,
-            self._target_lang,
+            source_lang,
+            target_lang,
         )
+        self._record_completed(result, source_lang, target_lang)
         self._presenter.show(result)
 
 

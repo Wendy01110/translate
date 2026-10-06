@@ -12,12 +12,36 @@ from ai_translate.bootstrap.composition import (
     selection_service,
 )
 from ai_translate.config import AppPreferences, Settings, resolve_env_path
+from ai_translate.core.history import HistoryEntry
+from ai_translate.core.models import JobKind, JobStatus, TranslateJob
 from ai_translate.core.ports import ResultPresenter
 from ai_translate.infrastructure.env_file import upsert_env_values
 from ai_translate.infrastructure.image_file import load_image_file
 from ai_translate.interfaces.cli import CliServices, run
 from ai_translate.interfaces.listen import DesktopListener
 from ai_translate.interfaces.overlay import paddle_first_load_message
+
+
+def _desktop_history():
+    from ai_translate.features.history import TranslationHistory
+    from ai_translate.infrastructure.history import JsonHistoryStore, default_history_path
+
+    return TranslationHistory(JsonHistoryStore(default_history_path()))
+
+
+def _restore_history(
+    entry: HistoryEntry, listener: DesktopListener, presenter: ResultPresenter,
+) -> bool:
+    if listener.translation_busy or getattr(presenter, "translation_busy", False):
+        return False
+    listener.set_target_lang(entry.target_lang)
+    presenter.set_target_language(entry.target_lang)
+    presenter.show(TranslateJob(
+        kind=entry.kind, status=JobStatus.SUCCESS,
+        source_text=entry.source_text, translated_text=entry.translated_text,
+        ocr_text=entry.source_text if entry.kind is JobKind.OCR else None,
+    ))
+    return True
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -105,6 +129,7 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
         request_accessibility_prompt,
     )
     from ai_translate.interfaces.live_overlay import LiveOverlayPresenter
+    from ai_translate.interfaces.history import HistoryPresenter
     from ai_translate.interfaces.menubar import cocoa_app_loop, run_status_app
     from ai_translate.interfaces.overlay import OverlayPresenter
     from ai_translate.interfaces.region_picker import RegionPicker
@@ -128,6 +153,7 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
             live_active=lambda: bool(listener and listener.live_running),
         )
         desktop_services = DesktopRuntime(settings, on_paddle_first_load=paddle_first_load)
+        history = _desktop_history()
         listener = DesktopListener(
             selection=desktop_services.selection,
             ocr_translate=desktop_services.ocr_translate,
@@ -147,6 +173,7 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
             pick_region=RegionPicker(),
             capture_rect=RectCapture().capture_rect,
             live_presenter=live_ui,
+            record_result=history.record,
         )
         presenter.set_translate(listener.handle_typed_text)
         presenter.configure_target_languages(
@@ -156,6 +183,9 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
         )
         live_ui.set_stop(listener.stop_live)
         if command == "app":
+            history_ui = HistoryPresenter(
+                history, lambda entry: _restore_history(entry, listener, presenter),
+            )
             settings_ui = SettingsPresenter(
                 load=lambda: Settings.load().preferences(),
                 save=lambda prefs: _save_preferences(
@@ -171,6 +201,7 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
                     listener,
                     open_settings=settings_ui.show,
                     open_input=presenter.show_input,
+                    open_history=history_ui.show,
                 )
 
             start_app = start_app_run
@@ -194,6 +225,7 @@ def _build_macos_services(settings: Settings, args: Sequence[str]) -> CliService
 
 
 def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServices:
+    from ai_translate.interfaces.history import WindowsHistoryPresenter
     from ai_translate.infrastructure.selected_text import SelectedTextSource
     from ai_translate.infrastructure.windows_desktop import (
         WindowsClipboard,
@@ -246,6 +278,7 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         live_active=lambda: bool(listener and listener.live_running),
     )
     desktop_services = DesktopRuntime(settings, on_paddle_first_load=paddle_first_load)
+    history = _desktop_history()
     listener = DesktopListener(
         selection=desktop_services.selection,
         ocr_translate=desktop_services.ocr_translate,
@@ -263,6 +296,7 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
         pick_region=picker,
         capture_rect=rect_capture.capture_rect,
         live_presenter=live_ui,
+        record_result=history.record,
     )
     presenter.set_translate(listener.handle_typed_text)
     presenter.configure_target_languages(
@@ -274,6 +308,9 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
     start_listener = listener.run if command == "listen" else None
     start_app = None
     if command == "app":
+        history_ui = WindowsHistoryPresenter(
+            runtime, history, lambda entry: _restore_history(entry, listener, presenter),
+        )
         settings_ui = WindowsSettingsPresenter(
             runtime,
             load=lambda: Settings.load().preferences(),
@@ -294,6 +331,7 @@ def _build_windows_services(settings: Settings, args: Sequence[str]) -> CliServi
                 release_instance=instance.close,
                 open_settings=settings_ui.show,
                 open_input=presenter.show_input,
+                open_history=history_ui.show,
             )
 
         start_app = start_app_run

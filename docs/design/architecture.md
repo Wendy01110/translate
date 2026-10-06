@@ -14,6 +14,7 @@
 | --- | --- |
 | 依赖方向 | `tests/architecture/test_dependency_rules.py` |
 | 结果契约 | `src/ai_translate/core/models.py` |
+| 历史契约与预算 | `src/ai_translate/core/history.py` |
 | 端口 | `src/ai_translate/core/ports.py` |
 | 配置加载 | `src/ai_translate/config.py` |
 | 组合入口 | `src/ai_translate/bootstrap/composition.py`、`src/ai_translate/app.py` |
@@ -26,9 +27,9 @@ src/ai_translate/
 ├── config.py             # 从环境变量加载翻译和四层 OCR 配置
 ├── bootstrap/            # 构造客户端和用例
 ├── core/                 # 契约、错误、端口
-├── features/             # 划词翻译、OCR 翻译
-├── infrastructure/       # 模型 HTTP、平台选区剪贴板、截屏和单实例
-└── interfaces/           # CLI、热键常驻、托盘/菜单栏、设置、翻译工作区、区域圈选和字幕条
+├── features/             # 划词翻译、OCR 翻译、有界历史
+├── infrastructure/       # 模型 HTTP、平台选区剪贴板、截屏、历史存储和单实例
+└── interfaces/           # CLI、热键常驻、托盘/菜单栏、设置、翻译工作区、历史、区域圈选和字幕条
 ```
 
 ## 依赖方向
@@ -71,6 +72,8 @@ OCR 翻译由 `OcrTranslateService` 编排：先调用 `OcrEngine`，识别文�
 CLI 接入 `config-check`、`text`、`ocr`、`ocr-translate`、`listen` 和 `app`。`ocr` 只走 OCR 端口；划词、桌面输入、单次 `ocr-translate` 和实时 OCR 必须走同一个翻译端口。`listen` 和桌面 App 把热键接到选区来源、区域截屏、实时区域循环和界面 presenter，不在 interface 里直接打 HTTP。macOS 与 Windows 的 `app.py` 都只为普通翻译创建一个平台 presenter：桌面输入调用 `show_input()`，划词和单次 OCR 结果调用同一实例的 `show()`；macOS 复用一个 `NSPanel`，Windows 复用一个 PySide6 `QQuickWindow`。两端的菜单输入、划词和 OCR 原文可编辑，译文只读；标题区翻译按钮与平台快捷键从后台线程复用当前 `DesktopListener.handle_typed_text`、语言配置与忙碌锁，再回到 UI 主线程更新同一窗口，临时状态保持只读。工作区目标语言栏复用 `TARGET_LANG_OPTIONS`，选择后只调用 `DesktopListener.set_target_lang()` 更新进程内目标并清空实时 OCR 去重记忆，不自动翻译也不写 `.env`；设置页保存后，`replace_runtime()` 与 presenter 栏位同时回到持久配置。普通窗口默认允许其它窗口覆盖，只在用户点击图钉或「置顶」后保持最前；该状态不进入配置。macOS 未置顶时使用普通层级、移动到当前 Space 并采用 full-screen auxiliary，失去 key 状态后保留在后台，允许其它窗口覆盖；Windows 每次新结果短暂前置后恢复普通层级，并由 QML 在宽屏双栏与紧凑上下布局间切换。两端标题区复制动作只复制当前译文；实时字幕条继续固定置顶且不抢焦点。「实时翻译」圈选区域后开始有界循环；设置页只改写允许的环境变量并按受影响的配置更新用例。macOS `.app` 用嵌入式启动器、Windows 源码入口用项目 `.venv` 的 `pythonw.exe` 加载同一套 `app:main`，都不另写翻译语义。配置文件由 `resolve_env_path()` 选出一份，启动器只提供仓库路径，不把密钥或 `.env` 路径打进包内。
 
 OCR 由 `RoutingOcrEngine`、`TieredLocalOcrEngine` 与 `TieredRemoteOcrEngine` 分流：macOS 自动模式先 `VisionOcrEngine`，Windows 跳过该层；之后尝试可选且懒加载的本地 `PaddleOcrEngine`；再对单张且在 1 MB 边界内的图片尝试 API `OcrSpaceEngine`；最后使用已配置的 API 高级 `HttpOcrEngine`。图片文件读取位于 `infrastructure/image_file.py`。interfaces 不得直接调用 PaddleOCR、`httpx` 或拼装任一 OCR payload。翻译工作区只展示原文和译文；获得焦点后可使用平台复制快捷键复制选中文字，macOS 的划词与单次 OCR 原文都可编辑并触发已注入的文本翻译用例，标题区复制图标直接复制完整译文。
+
+有界历史作为独立用例，通过 `HistoryStorage` 接入本地 JSON，桌面 listener 仅在成功单次任务完成后调用注入的记录回调；实时循环不写历史。菜单/托盘历史窗口把选中记录展示到已有翻译工作区，不构造翻译客户端或自动请求。开启、预算、损坏保护和语言快照见[本地翻译历史](./translation-history.md)。
 
 ## 变更与验证要求
 

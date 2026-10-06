@@ -33,6 +33,7 @@ def menu_spec(
         (f"截图翻译  {display_hotkey(ocr_hotkey)}", "ocr"),
         (live_menu_title(live_hotkey, running=live_running), "live"),
         ("输入翻译…", "input"),
+        ("历史记录…", "history"),
         (permission, "accessibility"),
         ("设置…", "settings"),
         ("退出", "quit"),
@@ -92,6 +93,7 @@ def run_status_app(
     *,
     open_settings: Callable[[], None] | None = None,
     open_input: Callable[[], None] | None = None,
+    open_history: Callable[[], None] | None = None,
 ) -> int:
     if sys.platform != "darwin":
         print("app is only supported on macOS", file=sys.stderr)
@@ -103,6 +105,7 @@ def run_status_app(
         listener,
         open_settings=open_settings,
         open_input=open_input,
+        open_history=open_history,
     )
     return listener.run()
 
@@ -118,6 +121,7 @@ def _install_status_item(
     *,
     open_settings: Callable[[], None] | None = None,
     open_input: Callable[[], None] | None = None,
+    open_history: Callable[[], None] | None = None,
 ) -> None:
     from AppKit import (
         NSApplication,
@@ -163,6 +167,9 @@ def _install_status_item(
         "openSettings:",
         ",",
     )
+    history_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        "历史记录…", "openHistory:", "",
+    )
     quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
         "退出",
         "quitApp:",
@@ -179,11 +186,14 @@ def _install_status_item(
             open_input,
         )
     )
+    controller.open_history_cb = open_history
+    controller.pending_history = False
     for item in (
         selection_item,
         ocr_item,
         live_item,
         input_item,
+        history_item,
         permission_item,
         settings_item,
         quit_item,
@@ -193,6 +203,7 @@ def _install_status_item(
     menu.addItem_(ocr_item)
     menu.addItem_(live_item)
     menu.addItem_(input_item)
+    menu.addItem_(history_item)
     menu.addItem_(NSMenuItem.separatorItem())
     menu.addItem_(permission_item)
     menu.addItem_(settings_item)
@@ -296,6 +307,10 @@ def _menu_controller_class() -> type:
             )
 
         def menuDidClose_(self, _menu) -> None:
+            if self.pending_history:
+                NSObject.cancelPreviousPerformRequestsWithTarget_(self)
+                self.performSelector_withObject_afterDelay_("openHistoryNow:", None, 0.05)
+                return
             if self.pending_settings:
                 NSObject.cancelPreviousPerformRequestsWithTarget_(self)
                 self.performSelector_withObject_afterDelay_(
@@ -335,6 +350,20 @@ def _menu_controller_class() -> type:
                 present = getattr(self.listener, "present_error", None)
                 if callable(present):
                     present(f"输入翻译打不开：{exc}")
+
+        def openHistory_(self, _sender) -> None:
+            if self.open_history_cb is None:
+                return
+            self.pending_history = True
+            self.performSelector_withObject_afterDelay_("openHistoryNow:", None, MENU_ACTION_DELAY)
+
+        def openHistoryNow_(self, _sender) -> None:
+            if not _consume_pending(self, "pending_history"):
+                return
+            try:
+                self.open_history_cb()
+            except Exception:
+                self.listener.present_error("历史窗口打不开，翻译功能仍可使用。")
 
         def quitApp_(self, _sender) -> None:
             from AppKit import NSApp

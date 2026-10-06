@@ -61,6 +61,50 @@ def test_selection_hotkey_translates_selected_text() -> None:
     assert presenter.jobs[0].translated_text == "你好"
 
 
+def test_history_records_only_successful_single_translation_paths():
+    recorded = []
+    listener, _presenter = _listener(record_result=lambda *args: recorded.append(args))
+    assert listener.handle_typed_text("typed").status is JobStatus.SUCCESS
+    listener.handle_selection()
+    listener.handle_ocr()
+    assert len(recorded) == 3
+    assert [record[0].kind for record in recorded] == [JobKind.SELECTION, JobKind.SELECTION, JobKind.OCR]
+    assert [record[1:] for record in recorded] == [("auto", "zh")] * 3
+    listener.handle_typed_text("")
+    assert len(recorded) == 3
+    listener._live_rect = ScreenRect(100, 200, 280, 60)
+    listener._capture_rect = lambda _rect: (b"frame", "image/png")
+    listener._live_stop.clear()
+    listener._live_running = True
+    assert listener.live_tick() == "show"
+    assert len(recorded) == 3
+
+
+def test_history_records_requested_language_not_later_runtime_language():
+    recorded = []
+    listener, _presenter = _listener(record_result=lambda *args: recorded.append(args))
+    translator = FakeTranslator()
+
+    def translate(request):
+        listener.set_target_lang("ja")
+        return translator.translate(request)
+
+    listener._selection = SelectionTranslateService(SimpleNamespace(translate=translate))
+    listener.handle_typed_text("synthetic")
+    assert listener.target_lang == "ja"
+    assert recorded[0][1:] == ("auto", "zh")
+
+
+def test_history_observer_failure_does_not_break_translation():
+    def fail(*_args):
+        raise OSError("unavailable")
+
+    listener, presenter = _listener(record_result=fail)
+    assert listener.handle_typed_text("typed").status is JobStatus.SUCCESS
+    listener.handle_selection()
+    assert presenter.jobs[-1].status is JobStatus.SUCCESS
+
+
 def test_selection_hotkey_empty_text_does_not_call_translator() -> None:
     translator = FakeTranslator()
     listener, presenter = _listener(

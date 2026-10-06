@@ -4,6 +4,8 @@
 
 ## 目标与非目标
 
+托盘「历史记录…」打开 `History.qml`，复用现有 Qt 主线程运行时与共享历史用例；选中记录回到已有工作区，不创建第二套翻译语义，规则见[本地翻译历史](./translation-history.md)。
+
 - 目标：让 Windows 系统托盘、全局热键、选区复制、统一翻译工作区、区域截屏和实时字幕条复用现有翻译与 OCR 用例。
 - 目标：使用 PySide6、Qt Quick 和 QML 提供统一的 Windows 视觉与无障碍树，同时保持物理像素圈选、Per-Monitor DPI、置顶和不抢焦点合同。
 - 目标：Windows 平台代码不导入 AppKit、Quartz、Vision 或 `fcntl`，macOS 平台代码不因 Windows 依赖而改变安装结果。

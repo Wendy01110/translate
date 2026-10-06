@@ -338,6 +338,7 @@ def test_windows_tray_menu_wires_workspace_settings_and_quit(monkeypatch) -> Non
         listener=listener,
         open_input=lambda: calls.append("workspace"),
         open_settings=lambda: calls.append("settings"),
+        open_history=lambda: calls.append("history"),
         quit_app=lambda: calls.append("quit"),
     )
 
@@ -348,12 +349,14 @@ def test_windows_tray_menu_wires_workspace_settings_and_quit(monkeypatch) -> Non
     assert icon.started is True
     assert icon.title == "AI Translate"
     assert icon.menu.items[4].text == "打开翻译工作区…"
-    assert icon.menu.items[5].text == "设置…"
-    assert icon.menu.items[6].text == "退出 AI Translate"
+    assert icon.menu.items[5].text == "历史记录…"
+    assert icon.menu.items[6].text == "设置…"
+    assert icon.menu.items[7].text == "退出 AI Translate"
     icon.menu.items[4].triggered.emit()
     icon.menu.items[5].triggered.emit()
     icon.menu.items[6].triggered.emit()
-    assert calls == ["workspace", "settings", "quit"]
+    icon.menu.items[7].triggered.emit()
+    assert calls == ["workspace", "history", "settings", "quit"]
 
     tray.stop()
     assert icon.stopped is True

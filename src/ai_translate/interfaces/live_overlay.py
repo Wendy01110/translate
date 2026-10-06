@@ -177,6 +177,12 @@ class LiveOverlayPresenter:
     def show(self, job: TranslateJob) -> None:
         self._backend().show(format_live_overlay(job))
 
+    def show_if_current(self, job: TranslateJob, *, is_current: Callable[[], bool]) -> None:
+        self._backend().show(format_live_overlay(job), is_current=is_current)
+
+    def show_status_if_current(self, message: str, *, is_current: Callable[[], bool]) -> None:
+        self._backend().show(format_live_status(message), is_current=is_current)
+
     def hide(self) -> None:
         if self._impl is not None:
             self._impl.hide()
@@ -224,8 +230,11 @@ class _LiveOverlayBackend:
         self._placed = False
         self._closing = False
         self._laying_out = False
+        self._display_generation = 0
 
     def set_anchor(self, rect: ScreenRect | None) -> None:
+        if rect is not None:
+            self._display_generation += 1
         self._anchor = rect
         self._placed = False
 
@@ -233,10 +242,17 @@ class _LiveOverlayBackend:
         from Foundation import NSThread
         from PyObjCTools.AppHelper import callAfter
 
+        self._display_generation += 1
+        generation = self._display_generation
+
+        def hide_current() -> None:
+            if generation == self._display_generation:
+                self._hide_on_main()
+
         if NSThread.isMainThread():
-            self._hide_on_main()
+            hide_current()
             return
-        callAfter(self._hide_on_main)
+        callAfter(hide_current)
 
     def _hide_on_main(self) -> None:
         window = self._window
@@ -246,16 +262,23 @@ class _LiveOverlayBackend:
         window.orderOut_(None)
         self._closing = False
 
-    def show(self, content: OverlayContent) -> None:
+    def show(self, content: OverlayContent, *, is_current: Callable[[], bool] | None = None) -> None:
         from Foundation import NSThread
         from PyObjCTools.AppHelper import callAfter
 
-        if NSThread.isMainThread():
-            self._show_on_main(content)
-            return
-        callAfter(self._show_on_main, content)
+        generation = self._display_generation
 
-    def _show_on_main(self, content: OverlayContent) -> None:
+        def can_show() -> bool:
+            return generation == self._display_generation and (is_current is None or is_current())
+
+        if NSThread.isMainThread():
+            self._show_on_main(content, can_show)
+            return
+        callAfter(self._show_on_main, content, can_show)
+
+    def _show_on_main(self, content: OverlayContent, is_current: Callable[[], bool] | None = None) -> None:
+        if is_current is not None and not is_current():
+            return
         if self._window is None:
             self._build_window()
         self._window.setTitle_(content.title)
@@ -263,6 +286,8 @@ class _LiveOverlayBackend:
         _set_scrollable_text(self._translation, content.translation)
         _prepare_overlay_window(self._window, pinned=True)
         self.layout_window()
+        if is_current is not None and not is_current():
+            return
         if should_focus_live_overlay():
             self._window.makeKeyAndOrderFront_(None)
         self._window.orderFrontRegardless()

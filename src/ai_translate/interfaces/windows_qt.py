@@ -316,8 +316,13 @@ class WindowsOverlayPresenter:
         self._target_language_changed: Callable[[str], None] | None = None
         self._source_editable = False
         self._busy = False
+        self._pending_results = 0
         self._pinned = False
         self._copy_feedback_generation = 0
+
+    @property
+    def translation_busy(self) -> bool:
+        return self._busy or bool(self._pending_results)
 
     def show_status(self, message: str, source: str | None = None) -> None:
         display_message = (
@@ -327,9 +332,15 @@ class WindowsOverlayPresenter:
         self._runtime.call_soon(lambda: self._show(content, busy=True))
 
     def show(self, job: TranslateJob) -> None:
-        self._runtime.call_soon(
-            lambda: self._show(format_translation_workspace(job), busy=False)
-        )
+        self._pending_results += 1
+
+        def apply() -> None:
+            try:
+                self._show(format_translation_workspace(job), busy=False)
+            finally:
+                self._pending_results -= 1
+
+        self._runtime.call_soon(apply)
 
     def show_input(self) -> None:
         self._runtime.call_soon(self._show_input_ui)
@@ -741,30 +752,52 @@ class WindowsLiveOverlayPresenter:
         self._on_stop = on_stop
         self._anchor: ScreenRect | None = None
         self._window: object | None = None
+        self._display_generation = 0
 
     def set_stop(self, on_stop: Callable[[], None] | None) -> None:
         self._on_stop = on_stop
 
     def set_anchor(self, rect: ScreenRect | None) -> None:
+        if rect is not None:
+            self._display_generation += 1
+        generation = self._display_generation
         self._anchor = rect
-        self._runtime.call_soon(self._position)
+        self._runtime.call_soon(lambda: self._position() if generation == self._display_generation else None)
 
     def show_status(self, message: str, source: str | None = None) -> None:
         del source
-        self._runtime.call_soon(lambda: self._show(format_live_status(message)))
+        self._queue_show(format_live_status(message))
 
     def show(self, job: TranslateJob) -> None:
-        self._runtime.call_soon(lambda: self._show(format_live_overlay(job)))
+        self._queue_show(format_live_overlay(job))
+
+    def show_if_current(self, job: TranslateJob, *, is_current: Callable[[], bool]) -> None:
+        self._queue_show(format_live_overlay(job), is_current=is_current)
+
+    def show_status_if_current(self, message: str, *, is_current: Callable[[], bool]) -> None:
+        self._queue_show(format_live_status(message), is_current=is_current)
+
+    def _queue_show(self, content: OverlayContent, *, is_current: Callable[[], bool] | None = None) -> None:
+        generation = self._display_generation
+
+        def can_show() -> bool:
+            return generation == self._display_generation and (is_current is None or is_current())
+
+        self._runtime.call_soon(lambda: self._show(content, is_current=can_show))
 
     def hide(self) -> None:
-        self._runtime.call_soon(self._hide)
+        self._display_generation += 1
+        generation = self._display_generation
+        self._runtime.call_soon(lambda: self._hide() if generation == self._display_generation else None)
 
     def _create(self) -> None:
         window = self._runtime.create_window("LiveOverlay.qml")
         self._runtime.connect_signal(window, "stopRequested()", self._stop)
         self._window = window
 
-    def _show(self, content: OverlayContent) -> None:
+    def _show(self, content: OverlayContent, *, is_current: Callable[[], bool] | None = None) -> None:
+        if is_current is not None and not is_current():
+            return
         if self._window is None:
             self._create()
         assert self._window is not None
@@ -778,6 +811,8 @@ class WindowsLiveOverlayPresenter:
         self._window.setProperty("sourceText", source)
         self._window.setProperty("translationText", translation)
         self._position()
+        if is_current is not None and not is_current():
+            return
         self._runtime.present_window(self._window)
         self._runtime.set_no_activate(self._window)
 
@@ -991,11 +1026,13 @@ class WindowsTray:
         open_settings: Callable[[], None] | None,
         open_input: Callable[[], None] | None,
         quit_app: Callable[[], None],
+        open_history: Callable[[], None] | None = None,
     ) -> None:
         self._runtime = runtime
         self._listener = listener
         self._open_settings = open_settings
         self._open_input = open_input
+        self._open_history = open_history
         self._quit_app = quit_app
         self._icon: object | None = None
         self._menu: object | None = None
@@ -1010,6 +1047,7 @@ class WindowsTray:
         screenshot = QAction(menu)
         live = QAction(menu)
         workspace = QAction("打开翻译工作区…", menu)
+        history = QAction("历史记录…", menu)
         settings = QAction("设置…", menu)
         quit_action = QAction("退出 AI Translate", menu)
         selection.triggered.connect(
@@ -1018,6 +1056,7 @@ class WindowsTray:
         screenshot.triggered.connect(lambda: _start_callback(self._listener.handle_ocr))
         live.triggered.connect(lambda: _start_callback(self._listener.handle_live_ocr))
         workspace.triggered.connect(lambda: self._invoke_ui(self._open_input))
+        history.triggered.connect(lambda: self._invoke_ui(self._open_history))
         settings.triggered.connect(lambda: self._invoke_ui(self._open_settings))
         quit_action.triggered.connect(self._quit_app)
         menu.addAction(selection)
@@ -1025,6 +1064,7 @@ class WindowsTray:
         menu.addAction(live)
         menu.addSeparator()
         menu.addAction(workspace)
+        menu.addAction(history)
         menu.addAction(settings)
         menu.addAction(quit_action)
         menu.aboutToShow.connect(self._refresh_labels)
@@ -1089,6 +1129,7 @@ def run_windows_status_app(
     release_instance: Callable[[], None],
     open_settings: Callable[[], None] | None = None,
     open_input: Callable[[], None] | None = None,
+    open_history: Callable[[], None] | None = None,
 ) -> int:
     if sys.platform != "win32":
         print("app is only supported on macOS and Windows", file=sys.stderr)
@@ -1108,6 +1149,7 @@ def run_windows_status_app(
             listener=listener,
             open_settings=open_settings,
             open_input=open_input,
+            open_history=open_history,
             quit_app=quit_app,
         )
         tray.start()

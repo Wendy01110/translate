@@ -409,6 +409,13 @@ class OverlayPresenter:
     def __init__(self) -> None:
         self._impl = _build_backend()
 
+    @property
+    def translation_busy(self) -> bool:
+        return bool(
+            getattr(self._impl, "_busy", False)
+            or getattr(self._impl, "_pending_results", 0)
+        )
+
     def show_status(self, message: str, source: str | None = None) -> None:
         self._impl.show(format_status(message, source=source or ""))
 
@@ -500,6 +507,7 @@ class _AppKitBackend:
         self._target_language_changed: Callable[[str], None] | None = None
         self._source_editable = False
         self._busy = False
+        self._pending_results = 0
         self._copy_feedback_generation = 0
         self._placed = False
         self._pinned = False
@@ -554,7 +562,15 @@ class _AppKitBackend:
         if NSThread.isMainThread():
             self._show_on_main(content)
             return
-        callAfter(self._show_on_main, content)
+        self._pending_results += 1
+
+        def apply() -> None:
+            try:
+                self._show_on_main(content)
+            finally:
+                self._pending_results -= 1
+
+        callAfter(apply)
 
     def show_input(self, content: OverlayContent) -> None:
         from Foundation import NSThread
