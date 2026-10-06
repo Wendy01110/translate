@@ -17,7 +17,7 @@
 
 ## 当前工作
 
-- [核心路径后续优化与精简取舍](./plan/in-progress/2026-10-06-core-optimization-follow-on.md)：本轮改善 macOS 实时字幕条长文布局。
+当前没有进行中的计划；后续工作从[计划状态索引](./plan/README.md)进入。
 
 ## 按任务查找
 
